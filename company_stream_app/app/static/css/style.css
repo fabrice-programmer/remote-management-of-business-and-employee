@@ -1,0 +1,14 @@
+body {
+    background-color: #f5f5f5;
+    font-family: Arial, sans-serif;
+}
+
+.navbar {
+    background-color: #1e293b;
+    padding: 15px;
+    color: white;
+}
+
+.container {
+    margin-top: 40px;
+}

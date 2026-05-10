@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Chat
+{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <!-- Header -->
+    <div class="text-center mb-4">
+        <h2>💬 Department Chat</h2>
+        <p class="text-muted">Collaborate and communicate with your team in real time</p>
+    </div>
+
+    <!-- Chat Box -->
+    <div class="card shadow-sm">
+        <div class="card-body" style="height: 400px; overflow-y: auto; background: #f8f9fa;">
+
+            <!-- Example Messages -->
+            <div class="mb-2">
+                <div class="bg-primary text-white p-2 rounded w-50">
+                    Hello team 👋
+                </div>
+                <small class="text-muted">Admin • 10:00 AM</small>
+            </div>
+
+            <div class="mb-2 text-end">
+                <div class="bg-success text-white p-2 rounded w-50 ms-auto">
+                    Hi! Ready for today’s tasks.
+                </div>
+                <small class="text-muted">You • 10:01 AM</small>
+            </div>
+
+            <div class="mb-2">
+                <div class="bg-primary text-white p-2 rounded w-50">
+                    Please submit your reports.
+                </div>
+                <small class="text-muted">Manager • 10:05 AM</small>
+            </div>
+
+        </div>
+
+        <!-- Message Input -->
+        <div class="card-footer">
+            <form method="POST" class="d-flex">
+                <input type="text" name="message" class="form-control me-2" placeholder="Type your message...">
+                <button type="submit" class="btn btn-primary">Send</button>
+            </form>
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

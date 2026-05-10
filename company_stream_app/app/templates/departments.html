@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Departments
+{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <!-- Header -->
+    <div class="text-center mb-4">
+        <h2>🏢 Company Departments</h2>
+        <p class="text-muted">Manage and view all departments in the system</p>
+    </div>
+
+    <!-- Departments Grid -->
+    <div class="row">
+
+        <!-- IT Department -->
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-primary">
+                <div class="card-body text-center">
+                    <h4 class="text-primary">💻 IT Department</h4>
+                    <p>Handles systems, software, and technical support.</p>
+                    <button class="btn btn-primary btn-sm">View Team</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- HR Department -->
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-success">
+                <div class="card-body text-center">
+                    <h4 class="text-success">👥 HR Department</h4>
+                    <p>Manages employees, recruitment, and welfare.</p>
+                    <button class="btn btn-success btn-sm">View Team</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Finance Department -->
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-warning">
+                <div class="card-body text-center">
+                    <h4 class="text-warning">💰 Finance Department</h4>
+                    <p>Handles budgets, payments, and financial reports.</p>
+                    <button class="btn btn-warning btn-sm text-white">View Team</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Add Department Section -->
+    <div class="card mt-4 shadow-sm">
+        <div class="card-body text-center">
+            <h5>Add New Department</h5>
+            <p class="text-muted">Expand your company structure</p>
+            <button class="btn btn-dark">+ Add Department</button>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
