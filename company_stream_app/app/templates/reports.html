@@ -6,71 +6,120 @@ Reports
 
 {% block content %}
 
-<div class="container mt-4">
+<section class="reports-page">
+    <div class="container">
+        <div class="reports-header">
+            <div>
+                <p class="section-kicker">Document delivery</p>
+                <h1>Employee Reports</h1>
+                <p>Upload a document and send it directly to a person with an account on the platform.</p>
+            </div>
+            <a href="#upload-report" class="btn btn-primary">New Document</a>
+        </div>
 
-    <!-- Header -->
-    <div class="text-center mb-4">
-        <h2>📄 Employee Reports</h2>
-        <p class="text-muted">View and manage submitted reports</p>
-    </div>
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="report-panel" id="upload-report">
+                    <h2>Send Document</h2>
+                    <p class="text-muted">Choose a recipient, attach the document, and submit it as a report.</p>
 
-    <!-- Action Button -->
-    <div class="mb-3 text-end">
-        <a href="#" class="btn btn-primary">+ New Report</a>
-    </div>
+                    {% if users %}
+                        <form method="POST" action="{{ url_for('routes.upload_report') }}" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">Report Title</label>
+                                <input type="text" class="form-control" id="title" name="title" placeholder="Weekly production report" required>
+                            </div>
 
-    <!-- Reports Table -->
-    <div class="card shadow-sm">
-        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="recipient_id" class="form-label">Send To</label>
+                                <select class="form-select" id="recipient_id" name="recipient_id" required>
+                                    <option value="">Choose an account</option>
+                                    {% for user in users %}
+                                        <option value="{{ user.id }}">{{ user.username }} - {{ user.email }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
 
-            <table class="table table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>#</th>
-                        <th>Employee</th>
-                        <th>Title</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
+                            <div class="mb-3">
+                                <label for="document" class="form-label">Document</label>
+                                <input type="file" class="form-control" id="document" name="document" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg" required>
+                                <div class="form-text">PDF, Word, Excel, PowerPoint, text, and image files are supported.</div>
+                            </div>
 
-                <tbody>
+                            <div class="mb-3">
+                                <label for="message" class="form-label">Message</label>
+                                <textarea class="form-control" id="message" name="message" rows="4" placeholder="Add a short note for the recipient"></textarea>
+                            </div>
 
-                    <tr>
-                        <td>1</td>
-                        <td>John Doe</td>
-                        <td>Weekly Report</td>
-                        <td><span class="badge bg-success">Approved</span></td>
-                        <td>2026-05-08</td>
-                        <td><button class="btn btn-sm btn-info">View</button></td>
-                    </tr>
+                            <button type="submit" class="btn btn-dark w-100">Upload and Send</button>
+                        </form>
+                    {% else %}
+                        <div class="empty-state">
+                            <strong>No user accounts found.</strong>
+                            <span>Create at least one account before sending a document.</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
 
-                    <tr>
-                        <td>2</td>
-                        <td>Mary Jane</td>
-                        <td>Sales Report</td>
-                        <td><span class="badge bg-warning text-dark">Pending</span></td>
-                        <td>2026-05-09</td>
-                        <td><button class="btn btn-sm btn-info">View</button></td>
-                    </tr>
+            <div class="col-lg-7">
+                <div class="report-panel">
+                    <div class="table-heading">
+                        <div>
+                            <h2>Sent Documents</h2>
+                            <p class="text-muted">Documents uploaded through the reports session.</p>
+                        </div>
+                        <span class="report-count">{{ reports|length }}</span>
+                    </div>
 
-                    <tr>
-                        <td>3</td>
-                        <td>Alex Kim</td>
-                        <td>Project Update</td>
-                        <td><span class="badge bg-danger">Rejected</span></td>
-                        <td>2026-05-10</td>
-                        <td><button class="btn btn-sm btn-info">View</button></td>
-                    </tr>
-
-                </tbody>
-
-            </table>
-
+                    <div class="table-responsive">
+                        <table class="table report-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Recipient</th>
+                                    <th>Sender</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>File</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in reports %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ report.title }}</strong>
+                                            {% if report.message %}
+                                                <small>{{ report.message }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ report.recipient.username }}</td>
+                                        <td>{{ report.sender.username if report.sender else 'System' }}</td>
+                                        <td><span class="badge text-bg-success">{{ report.status }}</span></td>
+                                        <td>{{ report.created_at.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.download_report', report_id=report.id) }}">
+                                                Download
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6">
+                                            <div class="empty-state">
+                                                <strong>No documents yet.</strong>
+                                                <span>Use the upload form to send the first report.</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-
-</div>
+</section>
 
 {% endblock %}

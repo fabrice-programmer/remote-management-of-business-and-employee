@@ -6,63 +6,107 @@ Dashboard
 
 {% block content %}
 
-<div class="container mt-4">
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Workspace overview</p>
+                <h1>Welcome back, {{ current_user.username }}</h1>
+                <p>Follow updates, department communication, and reporting activity from one clean place.</p>
+            </div>
+            <a href="{{ url_for('routes.reports') }}" class="btn btn-primary">Send Report</a>
+        </div>
 
-    <!-- Header -->
-    <div class="text-center mb-4">
-        <h2>📊 Company Dashboard</h2>
-        <p class="text-muted">Employee activity and reports overview</p>
-    </div>
-
-    <!-- Stats Cards -->
-    <div class="row">
-
-        <div class="col-md-4 mb-3">
-            <div class="card text-white bg-primary shadow">
-                <div class="card-body text-center">
-                    <h5>Total Employees</h5>
-                    <h2>25</h2>
-                </div>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <span>{{ stats.employees }}</span>
+                <strong>Employees</strong>
+            </div>
+            <div class="stat-card">
+                <span>{{ stats.reports }}</span>
+                <strong>Your Reports</strong>
+            </div>
+            <div class="stat-card">
+                <span>{{ stats.received }}</span>
+                <strong>Received</strong>
+            </div>
+            <div class="stat-card">
+                <span>{{ stats.departments }}</span>
+                <strong>Departments</strong>
             </div>
         </div>
 
-        <div class="col-md-4 mb-3">
-            <div class="card text-white bg-success shadow">
-                <div class="card-body text-center">
-                    <h5>Reports Submitted</h5>
-                    <h2>18</h2>
+        <div class="row g-4 mt-1">
+            <div class="col-lg-7">
+                <div class="work-panel">
+                    <div class="panel-title">
+                        <h2>Company Updates</h2>
+                        <a href="{{ url_for('routes.manager_dashboard') }}">Publish update</a>
+                    </div>
+
+                    <div class="activity-list">
+                        {% for update in updates %}
+                            <article class="activity-item">
+                                <span>{{ update.department }}</span>
+                                <strong>{{ update.title }}</strong>
+                                <p>{{ update.body }}</p>
+                                <small>{{ update.author.username }} · {{ update.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </article>
+                        {% else %}
+                            <div class="empty-state">
+                                <strong>No updates yet.</strong>
+                                <span>Use the manager page to publish the first company update.</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="work-panel">
+                    <div class="panel-title">
+                        <h2>Recent Reports</h2>
+                        <a href="{{ url_for('routes.reports') }}">View all</a>
+                    </div>
+
+                    <div class="compact-list">
+                        {% for report in reports %}
+                            <a href="{{ url_for('routes.download_report', report_id=report.id) }}">
+                                <strong>{{ report.title }}</strong>
+                                <span>{{ report.sender.username if report.sender else 'System' }} to {{ report.recipient.username }}</span>
+                            </a>
+                        {% else %}
+                            <div class="empty-state">
+                                <strong>No reports yet.</strong>
+                                <span>Send a document from the reports page.</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="work-panel mt-4">
+                    <div class="panel-title">
+                        <h2>Latest Chat</h2>
+                        <a href="{{ url_for('routes.chat') }}">Open chat</a>
+                    </div>
+
+                    <div class="compact-list">
+                        {% for message in messages %}
+                            <a href="{{ url_for('routes.chat', department=message.department) }}">
+                                <strong>{{ message.department }}</strong>
+                                <span>{{ message.user.username }}: {{ message.body }}</span>
+                            </a>
+                        {% else %}
+                            <div class="empty-state">
+                                <strong>No chat messages.</strong>
+                                <span>Start a department conversation.</span>
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
-
-        <div class="col-md-4 mb-3">
-            <div class="card text-white bg-warning shadow">
-                <div class="card-body text-center">
-                    <h5>Pending Tasks</h5>
-                    <h2>7</h2>
-                </div>
-            </div>
-        </div>
-
     </div>
-
-    <!-- Activity Section -->
-    <div class="card mt-4 shadow-sm">
-        <div class="card-header bg-dark text-white">
-            Recent Activity
-        </div>
-        <div class="card-body">
-
-            <ul class="list-group">
-                <li class="list-group-item">✔ John submitted a report</li>
-                <li class="list-group-item">✔ Marketing team updated campaign</li>
-                <li class="list-group-item">✔ New employee registered</li>
-                <li class="list-group-item">✔ Finance report reviewed</li>
-            </ul>
-
-        </div>
-    </div>
-
-</div>
+</section>
 
 {% endblock %}

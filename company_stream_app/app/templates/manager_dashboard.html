@@ -6,67 +6,78 @@ Manager Dashboard
 
 {% block content %}
 
-<div class="container mt-4">
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Management center</p>
+                <h1>Manager Dashboard</h1>
+                <p>Publish company updates and keep work visible across departments, chat, and reports.</p>
+            </div>
+            <a href="{{ url_for('routes.reports') }}" class="btn btn-primary">Review Reports</a>
+        </div>
 
-    <!-- Header -->
-    <div class="text-center mb-4">
-        <h2>🧑‍💼 Manager Dashboard</h2>
-        <p class="text-muted">Control employees, departments, and reports</p>
-    </div>
+        <div class="stat-grid">
+            <div class="stat-card"><span>{{ stats.employees }}</span><strong>Employees</strong></div>
+            <div class="stat-card"><span>{{ stats.reports }}</span><strong>Reports</strong></div>
+            <div class="stat-card"><span>{{ stats.updates }}</span><strong>Updates</strong></div>
+            <div class="stat-card"><span>{{ stats.messages }}</span><strong>Messages</strong></div>
+        </div>
 
-    <!-- Stats -->
-    <div class="row">
+        <div class="row g-4 mt-1">
+            <div class="col-lg-5">
+                <div class="work-panel">
+                    <h2>Publish Update</h2>
+                    <p class="text-muted">Post an announcement that appears on employee dashboards.</p>
 
-        <div class="col-md-4 mb-3">
-            <div class="card bg-primary text-white shadow">
-                <div class="card-body text-center">
-                    <h5>Employees</h5>
-                    <h2>32</h2>
+                    <form method="POST" action="{{ url_for('routes.create_update') }}">
+                        <div class="mb-3">
+                            <label class="form-label" for="title">Title</label>
+                            <input class="form-control" id="title" name="title" placeholder="Shift handover reminder" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="department">Department</label>
+                            <select class="form-select" id="department" name="department">
+                                <option>Company-wide</option>
+                                {% for department in departments %}
+                                    <option>{{ department.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="body">Update</label>
+                            <textarea class="form-control" id="body" name="body" rows="5" placeholder="Share the update employees need to know" required></textarea>
+                        </div>
+                        <button class="btn btn-dark w-100" type="submit">Publish Update</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="work-panel">
+                    <div class="panel-title">
+                        <h2>Recent Updates</h2>
+                        <a href="{{ url_for('routes.dashboard') }}">Employee view</a>
+                    </div>
+                    <div class="activity-list">
+                        {% for update in updates %}
+                            <article class="activity-item">
+                                <span>{{ update.department }}</span>
+                                <strong>{{ update.title }}</strong>
+                                <p>{{ update.body }}</p>
+                                <small>{{ update.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </article>
+                        {% else %}
+                            <div class="empty-state">
+                                <strong>No updates published.</strong>
+                                <span>Create the first update from the form.</span>
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
-
-        <div class="col-md-4 mb-3">
-            <div class="card bg-success text-white shadow">
-                <div class="card-body text-center">
-                    <h5>Reports</h5>
-                    <h2>14</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4 mb-3">
-            <div class="card bg-warning text-white shadow">
-                <div class="card-body text-center">
-                    <h5>Pending Approvals</h5>
-                    <h2>6</h2>
-                </div>
-            </div>
-        </div>
-
     </div>
-
-    <!-- Actions -->
-    <div class="card mt-4 shadow-sm">
-        <div class="card-body">
-
-            <h5>Quick Actions</h5>
-
-            <a href="{{ url_for('departments') }}" class="btn btn-primary m-1">
-                View Departments
-            </a>
-
-            <a href="{{ url_for('dashboard') }}" class="btn btn-success m-1">
-                Main Dashboard
-            </a>
-
-            <a href="#" class="btn btn-dark m-1">
-                Approve Reports
-            </a>
-
-        </div>
-    </div>
-
-</div>
+</section>
 
 {% endblock %}

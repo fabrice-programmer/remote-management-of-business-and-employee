@@ -1,57 +1,70 @@
 {% extends 'base.html' %}
 
 {% block title %}
-Chat
+Department Chat
 {% endblock %}
 
 {% block content %}
 
-<div class="container mt-4">
-
-    <!-- Header -->
-    <div class="text-center mb-4">
-        <h2>💬 Department Chat</h2>
-        <p class="text-muted">Collaborate and communicate with your team in real time</p>
-    </div>
-
-    <!-- Chat Box -->
-    <div class="card shadow-sm">
-        <div class="card-body" style="height: 400px; overflow-y: auto; background: #f8f9fa;">
-
-            <!-- Example Messages -->
-            <div class="mb-2">
-                <div class="bg-primary text-white p-2 rounded w-50">
-                    Hello team 👋
-                </div>
-                <small class="text-muted">Admin • 10:00 AM</small>
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Team communication</p>
+                <h1>Department Chat</h1>
+                <p>Keep team conversations connected to departments instead of scattered across tools.</p>
             </div>
-
-            <div class="mb-2 text-end">
-                <div class="bg-success text-white p-2 rounded w-50 ms-auto">
-                    Hi! Ready for today’s tasks.
-                </div>
-                <small class="text-muted">You • 10:01 AM</small>
-            </div>
-
-            <div class="mb-2">
-                <div class="bg-primary text-white p-2 rounded w-50">
-                    Please submit your reports.
-                </div>
-                <small class="text-muted">Manager • 10:05 AM</small>
-            </div>
-
+            <a href="{{ url_for('routes.departments') }}" class="btn btn-primary">View Departments</a>
         </div>
 
-        <!-- Message Input -->
-        <div class="card-footer">
-            <form method="POST" class="d-flex">
-                <input type="text" name="message" class="form-control me-2" placeholder="Type your message...">
-                <button type="submit" class="btn btn-primary">Send</button>
-            </form>
+        <div class="row g-4">
+            <div class="col-lg-3">
+                <div class="work-panel">
+                    <h2>Channels</h2>
+                    <div class="channel-list">
+                        <a class="{{ 'active' if active_department == 'General' else '' }}" href="{{ url_for('routes.chat', department='General') }}">General</a>
+                        {% for department in departments %}
+                            <a class="{{ 'active' if active_department == department.name else '' }}" href="{{ url_for('routes.chat', department=department.name) }}">{{ department.name }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-9">
+                <div class="chat-panel">
+                    <div class="chat-heading">
+                        <div>
+                            <h2>{{ active_department }}</h2>
+                            <p>Messages in this department channel.</p>
+                        </div>
+                    </div>
+
+                    <div class="chat-stream">
+                        {% for message in messages %}
+                            <div class="chat-message {{ 'mine' if message.user_id == current_user.id else '' }}">
+                                <div>
+                                    <strong>{{ message.user.username }}</strong>
+                                    <small>{{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                </div>
+                                <p>{{ message.body }}</p>
+                            </div>
+                        {% else %}
+                            <div class="empty-state">
+                                <strong>No messages in {{ active_department }}.</strong>
+                                <span>Start the conversation below.</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <form method="POST" class="chat-form">
+                        <input type="hidden" name="department" value="{{ active_department }}">
+                        <input type="text" name="message" class="form-control" placeholder="Type a message for {{ active_department }}..." required>
+                        <button type="submit" class="btn btn-dark">Send</button>
+                    </form>
+                </div>
+            </div>
         </div>
-
     </div>
-
-</div>
+</section>
 
 {% endblock %}

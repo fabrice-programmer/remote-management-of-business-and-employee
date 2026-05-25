@@ -1,34 +1,135 @@
 {% extends 'base.html' %}
 
 {% block title %}
-Home
+Fab Stream Platform
 {% endblock %}
 
 {% block content %}
 
-<div class="text-center mt-5">
+<section class="home-hero">
+    <div class="hero-overlay"></div>
+    <div class="container hero-content">
+        <div class="hero-copy">
+            <p class="hero-kicker">Enterprise collaboration and reporting</p>
+            <h1>Fab Stream Platform</h1>
+            <p class="hero-lead">
+                A modern workspace for teams to communicate, manage departments,
+                track activity, and deliver reports from one secure business hub.
+            </p>
 
-    <h1 class="display-3 fw-bold">
-        Company Stream App
-    </h1>
+            <div class="hero-actions">
+                <a href="/dashboard" class="btn btn-primary btn-lg">Open Dashboard</a>
+                <a href="/reports" class="btn btn-outline-light btn-lg">View Reports</a>
+            </div>
 
-    <p class="lead mt-4">
-        Empowering companies with real-time employee collaboration,
-        live department communication, productivity tracking,
-        and smart reporting systems.
-    </p>
+            <div class="hero-status">
+                <span class="status-dot"></span>
+                <span id="dynamic-message">Live operations view is ready.</span>
+            </div>
+        </div>
+    </div>
+</section>
 
-    <hr class="my-4">
+<section class="metrics-band">
+    <div class="container">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <span class="metric-value" data-count="32">0</span>
+                    <span class="metric-label">Active Employees</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <span class="metric-value" data-count="18">0</span>
+                    <span class="metric-label">Reports Submitted</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <span class="metric-value" data-count="7">0</span>
+                    <span class="metric-label">Pending Tasks</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 
-    <p class="fs-5">
-        Connect teams. Track work. Share reports.
-        Improve productivity — all in one platform.
-    </p>
+<section class="business-section">
+    <div class="container">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6">
+                <p class="section-kicker">Built for daily company operations</p>
+                <h2>Clear visibility across people, teams, and reports.</h2>
+                <p>
+                    Fab Stream gives managers and employees a clean place to follow
+                    updates, communicate with departments, and keep business reporting
+                    organized without switching between scattered tools.
+                </p>
 
-    <a href="/dashboard" class="btn btn-dark btn-lg mt-3">
-        Open Dashboard
-    </a>
+                <div class="feature-list">
+                    <div>
+                        <strong>Department communication</strong>
+                        <span>Keep team conversations organized and easy to follow.</span>
+                    </div>
+                    <div>
+                        <strong>Manager oversight</strong>
+                        <span>Review employees, reports, and approvals from one dashboard.</span>
+                    </div>
+                    <div>
+                        <strong>Smart reporting</strong>
+                        <span>Track report status and business activity with confidence.</span>
+                    </div>
+                </div>
+            </div>
 
-</div>
+            <div class="col-lg-6">
+                <div class="office-panel">
+                    <img
+                        src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1100&q=80"
+                        alt="Modern office workspace with laptop"
+                    >
+                    <div class="office-panel-note">
+                        <span>Today</span>
+                        <strong id="office-clock">--:--</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="workflow-section">
+    <div class="container">
+        <div class="section-heading">
+            <p class="section-kicker">Platform modules</p>
+            <h2>Everything your team needs to stay aligned.</h2>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-4">
+                <a class="module-card" href="/chat">
+                    <span>01</span>
+                    <strong>Live Chat</strong>
+                    <p>Coordinate work and share updates with teams in real time.</p>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a class="module-card" href="/departments">
+                    <span>02</span>
+                    <strong>Departments</strong>
+                    <p>Organize company units and create a clearer business structure.</p>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a class="module-card" href="/manager-dashboard">
+                    <span>03</span>
+                    <strong>Management</strong>
+                    <p>Monitor activity, approvals, and productivity from one view.</p>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
 
 {% endblock %}
