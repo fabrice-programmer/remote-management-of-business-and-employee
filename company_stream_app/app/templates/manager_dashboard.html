@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}
-Manager Dashboard
+Announcements
 {% endblock %}
 
 {% block content %}
@@ -11,18 +11,24 @@ Manager Dashboard
         <div class="app-header">
             <div>
                 <p class="section-kicker">Management center</p>
-                <h1>Manager Dashboard</h1>
-                <p>Publish company updates and keep work visible across departments, chat, and reports.</p>
+                <h1>{% if is_admin %}Admin Dashboard{% else %}Announcements{% endif %}</h1>
+                <p>{% if is_admin %}Publish company updates and keep work visible across departments, chat, and reports.{% else %}Publish an announcement and follow the latest company updates.{% endif %}</p>
             </div>
-            <a href="{{ url_for('routes.reports') }}" class="btn btn-primary">Review Reports</a>
+            {% if is_admin %}
+                <a href="{{ url_for('routes.reports') }}" class="btn btn-primary">Review Reports</a>
+            {% else %}
+                <a href="{{ url_for('routes.employee_detail', employee_id=current_user.id) }}" class="btn btn-primary">Review Account</a>
+            {% endif %}
         </div>
 
-        <div class="stat-grid">
-            <div class="stat-card"><span>{{ stats.employees }}</span><strong>Employees</strong></div>
-            <div class="stat-card"><span>{{ stats.reports }}</span><strong>Reports</strong></div>
-            <div class="stat-card"><span>{{ stats.updates }}</span><strong>Updates</strong></div>
-            <div class="stat-card"><span>{{ stats.messages }}</span><strong>Messages</strong></div>
-        </div>
+        {% if is_admin %}
+            <div class="stat-grid">
+                <div class="stat-card"><span>{{ stats.employees }}</span><strong>Employees</strong></div>
+                <div class="stat-card"><span>{{ stats.reports }}</span><strong>Reports</strong></div>
+                <div class="stat-card"><span>{{ stats.updates }}</span><strong>Updates</strong></div>
+                <div class="stat-card"><span>{{ stats.messages }}</span><strong>Messages</strong></div>
+            </div>
+        {% endif %}
 
         <div class="row g-4 mt-1">
             <div class="col-lg-5">
@@ -75,6 +81,28 @@ Manager Dashboard
                         {% endfor %}
                     </div>
                 </div>
+
+                {% if is_admin %}
+                    <div class="work-panel mt-4">
+                        <div class="panel-title">
+                            <h2>Employee Supervision</h2>
+                            <span class="report-count">{{ employees|length }}</span>
+                        </div>
+                        <div class="compact-list">
+                            {% for employee in employees %}
+                                <a href="{{ url_for('routes.employee_detail', employee_id=employee.id) }}">
+                                    <strong>{{ employee.full_name or employee.username }}</strong>
+                                    <span>{{ employee.department or 'No department' }} - {{ employee.position or employee.role|title }}</span>
+                                </a>
+                            {% else %}
+                                <div class="empty-state">
+                                    <strong>No employees yet.</strong>
+                                    <span>Add employees from the departments page.</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>

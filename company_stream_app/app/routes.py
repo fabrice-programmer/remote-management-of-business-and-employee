@@ -3,13 +3,14 @@ from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.utils import secure_filename
 from app import bcrypt, db
 from app.forms import LoginForm, RegisterForm
-from app.models import ChatMessage, CompanyUpdate, EmployeeTask, ReportDocument, User
+from app.models import ChatMessage, CompanyUpdate, DirectMessage, EmployeeTask, ReportDocument, User
 import os
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 
 routes = Blueprint('routes', __name__)
 ALLOWED_DOCUMENT_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'png', 'jpg', 'jpeg'}
+ADMIN_ROLES = {'admin', 'manager'}
 DEPARTMENTS = [
     {
         'name': 'Operations',
@@ -53,6 +54,20 @@ def is_safe_redirect(target):
 
 def department_names():
     return [department['name'] for department in DEPARTMENTS]
+
+
+def is_admin(user=None):
+    user = user or current_user
+    return user.is_authenticated and user.role in ADMIN_ROLES
+
+
+def require_admin():
+    if not is_admin():
+        abort(403)
+
+
+def can_view_employee(employee):
+    return is_admin() or current_user.id == employee.id
 
 # =====================
 # Home Page
@@ -136,13 +151,18 @@ def logout():
 @routes.route('/dashboard')
 @login_required
 def dashboard():
-    visible_reports = ReportDocument.query.filter(
-        (ReportDocument.sender_id == current_user.id) |
-        (ReportDocument.recipient_id == current_user.id)
-    )
+    if is_admin():
+        visible_reports = ReportDocument.query
+        employees_count = User.query.count()
+    else:
+        visible_reports = ReportDocument.query.filter(
+            (ReportDocument.sender_id == current_user.id) |
+            (ReportDocument.recipient_id == current_user.id)
+        )
+        employees_count = 1
 
     stats = {
-        'employees': User.query.count(),
+        'employees': employees_count,
         'reports': visible_reports.count(),
         'received': ReportDocument.query.filter_by(recipient_id=current_user.id).count(),
         'departments': len(DEPARTMENTS)
@@ -150,12 +170,14 @@ def dashboard():
     updates = CompanyUpdate.query.order_by(CompanyUpdate.created_at.desc()).limit(5).all()
     reports = visible_reports.order_by(ReportDocument.created_at.desc()).limit(5).all()
     messages = ChatMessage.query.order_by(ChatMessage.created_at.desc()).limit(4).all()
-    return render_template('dashboard.html', stats=stats, updates=updates, reports=reports, messages=messages)
+    direct_messages = DirectMessage.query.filter_by(recipient_id=current_user.id).order_by(DirectMessage.created_at.desc()).limit(5).all()
+    return render_template('dashboard.html', stats=stats, updates=updates, reports=reports, messages=messages, direct_messages=direct_messages, is_admin=is_admin())
 
 
 @routes.route('/manager-dashboard')
 @login_required
 def manager_dashboard():
+    employees = User.query.order_by(User.username.asc()).all() if is_admin() else []
     stats = {
         'employees': User.query.count(),
         'reports': ReportDocument.query.count(),
@@ -163,7 +185,7 @@ def manager_dashboard():
         'messages': ChatMessage.query.count()
     }
     updates = CompanyUpdate.query.order_by(CompanyUpdate.created_at.desc()).limit(8).all()
-    return render_template('manager_dashboard.html', stats=stats, updates=updates, departments=DEPARTMENTS)
+    return render_template('manager_dashboard.html', stats=stats, updates=updates, departments=DEPARTMENTS, employees=employees, is_admin=is_admin())
 
 
 @routes.route('/updates/create', methods=['POST'])
@@ -195,6 +217,7 @@ def create_update():
 @routes.route('/chat', methods=['GET', 'POST'])
 @login_required
 def chat():
+    require_admin()
     if request.method == 'POST':
         body = request.form.get('message', '').strip()
         department = request.form.get('department', 'General').strip() or 'General'
@@ -217,6 +240,7 @@ def chat():
 @routes.route('/departments')
 @login_required
 def departments():
+    require_admin()
     department_stats = []
 
     for department in DEPARTMENTS:
@@ -240,6 +264,7 @@ def departments():
 @routes.route('/departments/employees/add', methods=['POST'])
 @login_required
 def add_department_employee():
+    require_admin()
     full_name = request.form.get('full_name', '').strip()
     username = request.form.get('username', '').strip()
     email = request.form.get('email', '').strip().lower()
@@ -308,9 +333,16 @@ def add_department_employee():
 @login_required
 def employee_detail(employee_id):
     employee = User.query.get_or_404(employee_id)
+    if not can_view_employee(employee):
+        abort(403)
+
     sent_reports = ReportDocument.query.filter_by(sender_id=employee.id).order_by(ReportDocument.created_at.desc()).all()
     received_reports = ReportDocument.query.filter_by(recipient_id=employee.id).order_by(ReportDocument.created_at.desc()).all()
     tasks = EmployeeTask.query.filter_by(employee_id=employee.id).order_by(EmployeeTask.created_at.desc()).all()
+    direct_messages = DirectMessage.query.filter(
+        (DirectMessage.sender_id == employee.id) |
+        (DirectMessage.recipient_id == employee.id)
+    ).order_by(DirectMessage.created_at.desc()).all()
 
     stats = {
         'sent_reports': len(sent_reports),
@@ -328,13 +360,16 @@ def employee_detail(employee_id):
         sent_reports=sent_reports,
         received_reports=received_reports,
         tasks=tasks,
-        stats=stats
+        direct_messages=direct_messages,
+        stats=stats,
+        is_admin=is_admin()
     )
 
 
 @routes.route('/employees/<int:employee_id>/tasks/add', methods=['POST'])
 @login_required
 def add_employee_task(employee_id):
+    require_admin()
     employee = User.query.get_or_404(employee_id)
     title = request.form.get('title', '').strip()
     description = request.form.get('description', '').strip()
@@ -367,6 +402,9 @@ def add_employee_task(employee_id):
 def update_employee_task_status(employee_id, task_id):
     employee = User.query.get_or_404(employee_id)
     task = EmployeeTask.query.filter_by(id=task_id, employee_id=employee.id).first_or_404()
+    if not can_view_employee(employee):
+        abort(403)
+
     status = request.form.get('status', '').strip()
 
     if status not in {'To Do', 'In Progress', 'Done'}:
@@ -379,18 +417,35 @@ def update_employee_task_status(employee_id, task_id):
     return redirect(url_for('routes.employee_detail', employee_id=employee.id))
 
 
+@routes.route('/employees/<int:employee_id>/messages/send', methods=['POST'])
+@login_required
+def send_employee_message(employee_id):
+    require_admin()
+    employee = User.query.get_or_404(employee_id)
+    body = request.form.get('body', '').strip()
+
+    if not body:
+        flash('Please enter a message before sending.', 'danger')
+        return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+    message = DirectMessage(
+        body=body,
+        sender_id=current_user.id,
+        recipient_id=employee.id
+    )
+    db.session.add(message)
+    db.session.commit()
+    flash(f'Message sent directly to {employee.full_name or employee.username}.', 'success')
+    return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+
 @routes.route('/reports')
 @login_required
 def reports():
+    require_admin()
     users = User.query.filter(User.id != current_user.id).order_by(User.username.asc()).all()
 
-    if current_user.role == 'manager':
-        reports = ReportDocument.query.order_by(ReportDocument.created_at.desc()).all()
-    else:
-        reports = ReportDocument.query.filter(
-            (ReportDocument.sender_id == current_user.id) |
-            (ReportDocument.recipient_id == current_user.id)
-        ).order_by(ReportDocument.created_at.desc()).all()
+    reports = ReportDocument.query.order_by(ReportDocument.created_at.desc()).all()
 
     return render_template('reports.html', reports=reports, users=users)
 
@@ -398,6 +453,7 @@ def reports():
 @routes.route('/reports/upload', methods=['POST'])
 @login_required
 def upload_report():
+    require_admin()
     title = request.form.get('title', '').strip()
     message = request.form.get('message', '').strip()
     recipient_id = request.form.get('recipient_id', type=int)
@@ -448,7 +504,7 @@ def download_report(report_id):
     report = ReportDocument.query.get_or_404(report_id)
 
     can_download = current_user.id in {report.sender_id, report.recipient_id}
-    if not can_download and current_user.role != 'manager':
+    if not can_download and not is_admin():
         abort(403)
 
     return send_from_directory(

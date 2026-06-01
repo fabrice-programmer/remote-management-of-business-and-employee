@@ -14,7 +14,11 @@ Dashboard
                 <h1>Welcome back, {{ current_user.username }}</h1>
                 <p>Follow updates, department communication, and reporting activity from one clean place.</p>
             </div>
-            <a href="{{ url_for('routes.reports') }}" class="btn btn-primary">Send Report</a>
+            {% if is_admin %}
+                <a href="{{ url_for('routes.reports') }}" class="btn btn-primary">Send Report</a>
+            {% else %}
+                <a href="{{ url_for('routes.employee_detail', employee_id=current_user.id) }}" class="btn btn-primary">Review Account</a>
+            {% endif %}
         </div>
 
         <div class="stat-grid">
@@ -50,7 +54,7 @@ Dashboard
                                 <span>{{ update.department }}</span>
                                 <strong>{{ update.title }}</strong>
                                 <p>{{ update.body }}</p>
-                                <small>{{ update.author.username }} · {{ update.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                <small>{{ update.author.username }} - {{ update.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
                             </article>
                         {% else %}
                             <div class="empty-state">
@@ -63,47 +67,73 @@ Dashboard
             </div>
 
             <div class="col-lg-5">
-                <div class="work-panel">
-                    <div class="panel-title">
-                        <h2>Recent Reports</h2>
-                        <a href="{{ url_for('routes.reports') }}">View all</a>
-                    </div>
+                {% if is_admin %}
+                    <div class="work-panel">
+                        <div class="panel-title">
+                            <h2>Recent Reports</h2>
+                            <a href="{{ url_for('routes.reports') }}">View all</a>
+                        </div>
 
-                    <div class="compact-list">
-                        {% for report in reports %}
-                            <a href="{{ url_for('routes.download_report', report_id=report.id) }}">
-                                <strong>{{ report.title }}</strong>
-                                <span>{{ report.sender.username if report.sender else 'System' }} to {{ report.recipient.username }}</span>
-                            </a>
-                        {% else %}
-                            <div class="empty-state">
-                                <strong>No reports yet.</strong>
-                                <span>Send a document from the reports page.</span>
-                            </div>
-                        {% endfor %}
+                        <div class="compact-list">
+                            {% for report in reports %}
+                                <a href="{{ url_for('routes.download_report', report_id=report.id) }}">
+                                    <strong>{{ report.title }}</strong>
+                                    <span>{{ report.sender.username if report.sender else 'System' }} to {{ report.recipient.username }}</span>
+                                </a>
+                            {% else %}
+                                <div class="empty-state">
+                                    <strong>No reports yet.</strong>
+                                    <span>Send a document from the reports page.</span>
+                                </div>
+                            {% endfor %}
+                        </div>
                     </div>
-                </div>
+                {% endif %}
 
                 <div class="work-panel mt-4">
                     <div class="panel-title">
-                        <h2>Latest Chat</h2>
-                        <a href="{{ url_for('routes.chat') }}">Open chat</a>
+                        <h2>Direct Messages</h2>
+                        <span class="report-count">{{ direct_messages|length }}</span>
                     </div>
 
                     <div class="compact-list">
-                        {% for message in messages %}
-                            <a href="{{ url_for('routes.chat', department=message.department) }}">
-                                <strong>{{ message.department }}</strong>
-                                <span>{{ message.user.username }}: {{ message.body }}</span>
-                            </a>
+                        {% for message in direct_messages %}
+                            <div class="compact-list-item">
+                                <strong>{{ message.sender.username }}</strong>
+                                <span>{{ message.body }}</span>
+                                <small>{{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </div>
                         {% else %}
                             <div class="empty-state">
-                                <strong>No chat messages.</strong>
-                                <span>Start a department conversation.</span>
+                                <strong>No direct messages.</strong>
+                                <span>Messages from admin will appear here.</span>
                             </div>
                         {% endfor %}
                     </div>
                 </div>
+
+                {% if is_admin %}
+                    <div class="work-panel mt-4">
+                        <div class="panel-title">
+                            <h2>Latest Chat</h2>
+                            <a href="{{ url_for('routes.chat') }}">Open chat</a>
+                        </div>
+
+                        <div class="compact-list">
+                            {% for message in messages %}
+                                <a href="{{ url_for('routes.chat', department=message.department) }}">
+                                    <strong>{{ message.department }}</strong>
+                                    <span>{{ message.user.username }}: {{ message.body }}</span>
+                                </a>
+                            {% else %}
+                                <div class="empty-state">
+                                    <strong>No chat messages.</strong>
+                                    <span>Start a department conversation.</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>

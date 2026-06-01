@@ -65,6 +65,22 @@ class ChatMessage(db.Model):
         return f'<ChatMessage {self.department}>'
 
 
+class DirectMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    read_at = db.Column(db.DateTime, nullable=True)
+
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_direct_messages')
+    recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_direct_messages')
+
+    def __repr__(self):
+        return f'<DirectMessage {self.sender_id}->{self.recipient_id}>'
+
+
 class EmployeeTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(150), nullable=False)

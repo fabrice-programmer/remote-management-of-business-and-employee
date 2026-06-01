@@ -41,22 +41,28 @@
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('routes.manager_dashboard') }}">Manager</a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('routes.chat') }}">Chat</a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('routes.departments') }}">Departments</a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('routes.reports') }}">Reports</a>
+                    <a class="nav-link" href="{{ url_for('routes.manager_dashboard') }}">Announcements</a>
                 </li>
 
                 {% if current_user.is_authenticated %}
+                    {% if current_user.role in ['admin', 'manager'] %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('routes.chat') }}">Chat</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('routes.reports') }}">Reports</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('routes.departments') }}">Departments</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('routes.employee_detail', employee_id=current_user.id) }}">My Account</a>
+                    </li>
+
                     <li class="nav-item">
                         <span class="nav-link nav-user">{{ current_user.username }}</span>
                     </li>
