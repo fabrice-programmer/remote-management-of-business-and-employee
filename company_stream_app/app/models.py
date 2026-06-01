@@ -8,6 +8,12 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(20), default='employee')
+    full_name = db.Column(db.String(120), nullable=True)
+    employee_number = db.Column(db.String(40), unique=True, nullable=True)
+    phone = db.Column(db.String(40), nullable=True)
+    department = db.Column(db.String(80), nullable=True)
+    position = db.Column(db.String(100), nullable=True)
+    hire_date = db.Column(db.String(20), nullable=True)
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -57,3 +63,22 @@ class ChatMessage(db.Model):
 
     def __repr__(self):
         return f'<ChatMessage {self.department}>'
+
+
+class EmployeeTask(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(150), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(30), default='To Do')
+    priority = db.Column(db.String(20), default='Normal')
+    due_date = db.Column(db.String(20), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    employee_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    assigned_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    employee = db.relationship('User', foreign_keys=[employee_id], backref='assigned_tasks')
+    assigned_by = db.relationship('User', foreign_keys=[assigned_by_id], backref='created_tasks')
+
+    def __repr__(self):
+        return f'<EmployeeTask {self.title}>'

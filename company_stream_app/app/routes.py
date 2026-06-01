@@ -3,7 +3,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.utils import secure_filename
 from app import bcrypt, db
 from app.forms import LoginForm, RegisterForm
-from app.models import ChatMessage, CompanyUpdate, ReportDocument, User
+from app.models import ChatMessage, CompanyUpdate, EmployeeTask, ReportDocument, User
 import os
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
@@ -49,6 +49,10 @@ def is_safe_redirect(target):
     host_url = urlparse(request.host_url)
     redirect_url = urlparse(urljoin(request.host_url, target))
     return redirect_url.scheme in {'http', 'https'} and host_url.netloc == redirect_url.netloc
+
+
+def department_names():
+    return [department['name'] for department in DEPARTMENTS]
 
 # =====================
 # Home Page
@@ -216,17 +220,163 @@ def departments():
     department_stats = []
 
     for department in DEPARTMENTS:
+        employee_count = User.query.filter_by(department=department['name']).count()
+        employees = User.query.filter_by(department=department['name']).order_by(User.username.asc()).limit(4).all()
         report_count = ReportDocument.query.filter(ReportDocument.message.ilike(f"%{department['name']}%")).count()
         message_count = ChatMessage.query.filter_by(department=department['name']).count()
         update_count = CompanyUpdate.query.filter_by(department=department['name']).count()
         department_stats.append({
             **department,
+            'employees': employee_count,
+            'employee_preview': employees,
             'reports': report_count,
             'messages': message_count,
             'updates': update_count
         })
 
     return render_template('departments.html', departments=department_stats)
+
+
+@routes.route('/departments/employees/add', methods=['POST'])
+@login_required
+def add_department_employee():
+    full_name = request.form.get('full_name', '').strip()
+    username = request.form.get('username', '').strip()
+    email = request.form.get('email', '').strip().lower()
+    employee_number = request.form.get('employee_number', '').strip()
+    phone = request.form.get('phone', '').strip()
+    department = request.form.get('department', '').strip()
+    position = request.form.get('position', '').strip()
+    hire_date = request.form.get('hire_date', '').strip()
+    password = request.form.get('password', '').strip()
+
+    required_fields = {
+        'full name': full_name,
+        'username': username,
+        'email': email,
+        'employee number': employee_number,
+        'department': department,
+        'position': position,
+        'password': password
+    }
+    missing_fields = [label for label, value in required_fields.items() if not value]
+
+    if missing_fields:
+        flash(f"Please complete: {', '.join(missing_fields)}.", 'danger')
+        return redirect(url_for('routes.departments'))
+
+    if department not in department_names():
+        flash('Please choose a valid department.', 'danger')
+        return redirect(url_for('routes.departments'))
+
+    if len(password) < 6:
+        flash('Employee password must be at least 6 characters.', 'danger')
+        return redirect(url_for('routes.departments'))
+
+    if User.query.filter_by(username=username).first():
+        flash('That username is already taken.', 'danger')
+        return redirect(url_for('routes.departments'))
+
+    if User.query.filter_by(email=email).first():
+        flash('That email already has an account.', 'danger')
+        return redirect(url_for('routes.departments'))
+
+    if User.query.filter_by(employee_number=employee_number).first():
+        flash('That employee number is already in use.', 'danger')
+        return redirect(url_for('routes.departments'))
+
+    employee = User(
+        full_name=full_name,
+        username=username,
+        email=email,
+        employee_number=employee_number,
+        phone=phone,
+        department=department,
+        position=position,
+        hire_date=hire_date,
+        role='employee',
+        password=bcrypt.generate_password_hash(password).decode('utf-8')
+    )
+
+    db.session.add(employee)
+    db.session.commit()
+    flash(f'{full_name} was added to {department}.', 'success')
+    return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+
+@routes.route('/employees/<int:employee_id>')
+@login_required
+def employee_detail(employee_id):
+    employee = User.query.get_or_404(employee_id)
+    sent_reports = ReportDocument.query.filter_by(sender_id=employee.id).order_by(ReportDocument.created_at.desc()).all()
+    received_reports = ReportDocument.query.filter_by(recipient_id=employee.id).order_by(ReportDocument.created_at.desc()).all()
+    tasks = EmployeeTask.query.filter_by(employee_id=employee.id).order_by(EmployeeTask.created_at.desc()).all()
+
+    stats = {
+        'sent_reports': len(sent_reports),
+        'received_reports': len(received_reports),
+        'open_tasks': EmployeeTask.query.filter(
+            EmployeeTask.employee_id == employee.id,
+            EmployeeTask.status != 'Done'
+        ).count(),
+        'completed_tasks': EmployeeTask.query.filter_by(employee_id=employee.id, status='Done').count()
+    }
+
+    return render_template(
+        'employee_detail.html',
+        employee=employee,
+        sent_reports=sent_reports,
+        received_reports=received_reports,
+        tasks=tasks,
+        stats=stats
+    )
+
+
+@routes.route('/employees/<int:employee_id>/tasks/add', methods=['POST'])
+@login_required
+def add_employee_task(employee_id):
+    employee = User.query.get_or_404(employee_id)
+    title = request.form.get('title', '').strip()
+    description = request.form.get('description', '').strip()
+    priority = request.form.get('priority', 'Normal').strip() or 'Normal'
+    due_date = request.form.get('due_date', '').strip()
+
+    if not title:
+        flash('Please enter a task title.', 'danger')
+        return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+    if priority not in {'Low', 'Normal', 'High', 'Urgent'}:
+        priority = 'Normal'
+
+    task = EmployeeTask(
+        title=title,
+        description=description,
+        priority=priority,
+        due_date=due_date,
+        employee_id=employee.id,
+        assigned_by_id=current_user.id
+    )
+    db.session.add(task)
+    db.session.commit()
+    flash(f'Task assigned to {employee.full_name or employee.username}.', 'success')
+    return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+
+@routes.route('/employees/<int:employee_id>/tasks/<int:task_id>/status', methods=['POST'])
+@login_required
+def update_employee_task_status(employee_id, task_id):
+    employee = User.query.get_or_404(employee_id)
+    task = EmployeeTask.query.filter_by(id=task_id, employee_id=employee.id).first_or_404()
+    status = request.form.get('status', '').strip()
+
+    if status not in {'To Do', 'In Progress', 'Done'}:
+        flash('Please choose a valid task status.', 'danger')
+        return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+    task.status = status
+    db.session.commit()
+    flash('Task status updated.', 'success')
+    return redirect(url_for('routes.employee_detail', employee_id=employee.id))
 
 
 @routes.route('/reports')

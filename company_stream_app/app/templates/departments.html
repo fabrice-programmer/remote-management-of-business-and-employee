@@ -30,11 +30,62 @@ Departments
                         <strong>{{ department.lead }}</strong>
                     </div>
                     <div class="department-metrics">
+                        <div><strong>{{ department.employees }}</strong><span>Employees</span></div>
                         <div><strong>{{ department.messages }}</strong><span>Messages</span></div>
                         <div><strong>{{ department.updates }}</strong><span>Updates</span></div>
-                        <div><strong>{{ department.reports }}</strong><span>Reports</span></div>
                     </div>
+                    <div class="employee-preview">
+                        {% for employee in department.employee_preview %}
+                            <a href="{{ url_for('routes.employee_detail', employee_id=employee.id) }}">
+                                <strong>{{ employee.full_name or employee.username }}</strong>
+                                <span>{{ employee.position or 'Employee' }}</span>
+                            </a>
+                        {% else %}
+                            <div class="employee-empty">No employees added yet.</div>
+                        {% endfor %}
+                    </div>
+                    <button class="btn btn-dark w-100 mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#add-employee-{{ loop.index }}" aria-expanded="false">
+                        Add Employee
+                    </button>
                     <a href="{{ url_for('routes.chat', department=department.name) }}" class="btn btn-outline-primary w-100">Go to Team Chat</a>
+                    <div class="collapse mt-3" id="add-employee-{{ loop.index }}">
+                        <form class="employee-form" method="POST" action="{{ url_for('routes.add_department_employee') }}">
+                            <input type="hidden" name="department" value="{{ department.name }}">
+                            <div class="mb-2">
+                                <label class="form-label" for="full_name_{{ loop.index }}">Full Name</label>
+                                <input class="form-control" id="full_name_{{ loop.index }}" name="full_name" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label" for="position_{{ loop.index }}">Position</label>
+                                <input class="form-control" id="position_{{ loop.index }}" name="position" placeholder="Supervisor" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label" for="employee_number_{{ loop.index }}">Employee Number</label>
+                                <input class="form-control" id="employee_number_{{ loop.index }}" name="employee_number" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label" for="email_{{ loop.index }}">Email</label>
+                                <input class="form-control" id="email_{{ loop.index }}" name="email" type="email" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label" for="phone_{{ loop.index }}">Phone</label>
+                                <input class="form-control" id="phone_{{ loop.index }}" name="phone">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label" for="hire_date_{{ loop.index }}">Start Date</label>
+                                <input class="form-control" id="hire_date_{{ loop.index }}" name="hire_date" type="date">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label" for="username_{{ loop.index }}">Username</label>
+                                <input class="form-control" id="username_{{ loop.index }}" name="username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="password_{{ loop.index }}">Temporary Password</label>
+                                <input class="form-control" id="password_{{ loop.index }}" name="password" type="password" minlength="6" required>
+                            </div>
+                            <button class="btn btn-primary w-100" type="submit">Save Employee</button>
+                        </form>
+                    </div>
                 </article>
             {% endfor %}
         </div>

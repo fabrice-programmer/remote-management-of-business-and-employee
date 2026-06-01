@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ employee.full_name or employee.username }}
+{% endblock %}
+
+{% block content %}
+
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Employee profile</p>
+                <h1>{{ employee.full_name or employee.username }}</h1>
+                <p>{{ employee.position or 'Employee' }}{% if employee.department %} in {{ employee.department }}{% endif %}</p>
+            </div>
+            <a href="{{ url_for('routes.departments') }}" class="btn btn-outline-primary">Back to Departments</a>
+        </div>
+
+        <div class="stat-grid">
+            <div class="stat-card"><span>{{ stats.sent_reports }}</span><strong>Reports Done</strong></div>
+            <div class="stat-card"><span>{{ stats.received_reports }}</span><strong>Reports Received</strong></div>
+            <div class="stat-card"><span>{{ stats.open_tasks }}</span><strong>Open Tasks</strong></div>
+            <div class="stat-card"><span>{{ stats.completed_tasks }}</span><strong>Completed Tasks</strong></div>
+        </div>
+
+        <div class="row g-4 mt-1">
+            <div class="col-lg-4">
+                <div class="work-panel employee-profile-panel">
+                    <div class="employee-avatar">
+                        {{ (employee.full_name or employee.username)[:1].upper() }}
+                    </div>
+                    <h2>{{ employee.full_name or employee.username }}</h2>
+                    <p class="text-muted">{{ employee.email }}</p>
+
+                    <dl class="employee-detail-list">
+                        <div>
+                            <dt>Employee Number</dt>
+                            <dd>{{ employee.employee_number or 'Not set' }}</dd>
+                        </div>
+                        <div>
+                            <dt>Department</dt>
+                            <dd>{{ employee.department or 'Not set' }}</dd>
+                        </div>
+                        <div>
+                            <dt>Position</dt>
+                            <dd>{{ employee.position or 'Not set' }}</dd>
+                        </div>
+                        <div>
+                            <dt>Phone</dt>
+                            <dd>{{ employee.phone or 'Not set' }}</dd>
+                        </div>
+                        <div>
+                            <dt>Start Date</dt>
+                            <dd>{{ employee.hire_date or 'Not set' }}</dd>
+                        </div>
+                        <div>
+                            <dt>Account Role</dt>
+                            <dd>{{ employee.role|title }}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="work-panel mt-4">
+                    <h2>Assign Task</h2>
+                    <p class="text-muted">Add work this employee needs to complete.</p>
+
+                    <form method="POST" action="{{ url_for('routes.add_employee_task', employee_id=employee.id) }}">
+                        <div class="mb-3">
+                            <label class="form-label" for="title">Task Title</label>
+                            <input class="form-control" id="title" name="title" placeholder="Prepare weekly report" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="priority">Priority</label>
+                            <select class="form-select" id="priority" name="priority">
+                                <option>Normal</option>
+                                <option>High</option>
+                                <option>Urgent</option>
+                                <option>Low</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="due_date">Due Date</label>
+                            <input class="form-control" id="due_date" name="due_date" type="date">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="description">Details</label>
+                            <textarea class="form-control" id="description" name="description" rows="4" placeholder="Task notes, expected output, or instructions"></textarea>
+                        </div>
+                        <button class="btn btn-dark w-100" type="submit">Assign Task</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="work-panel">
+                    <div class="panel-title">
+                        <h2>Tasks To Do</h2>
+                        <span class="report-count">{{ tasks|length }}</span>
+                    </div>
+                    <div class="task-list">
+                        {% for task in tasks %}
+                            <article class="task-item">
+                                <div>
+                                    <span class="task-priority priority-{{ task.priority|lower }}">{{ task.priority }}</span>
+                                    <strong>{{ task.title }}</strong>
+                                    {% if task.description %}
+                                        <p>{{ task.description }}</p>
+                                    {% endif %}
+                                </div>
+                                <div class="task-meta">
+                                    <span>{{ task.status }}</span>
+                                    <small>Due {{ task.due_date or 'not set' }}</small>
+                                    <small>Assigned by {{ task.assigned_by.username }}</small>
+                                    <form method="POST" action="{{ url_for('routes.update_employee_task_status', employee_id=employee.id, task_id=task.id) }}">
+                                        {% if task.status == 'Done' %}
+                                            <input type="hidden" name="status" value="To Do">
+                                            <button class="btn btn-sm btn-outline-primary" type="submit">Reopen</button>
+                                        {% else %}
+                                            <input type="hidden" name="status" value="Done">
+                                            <button class="btn btn-sm btn-dark" type="submit">Mark Done</button>
+                                        {% endif %}
+                                    </form>
+                                </div>
+                            </article>
+                        {% else %}
+                            <div class="empty-state">
+                                <strong>No tasks assigned.</strong>
+                                <span>Use the form to add the first task for this employee.</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="work-panel mt-4">
+                    <div class="panel-title">
+                        <h2>Reports Done</h2>
+                        <span class="report-count">{{ sent_reports|length }}</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table report-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Sent To</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>File</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in sent_reports %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ report.title }}</strong>
+                                            {% if report.message %}
+                                                <small>{{ report.message }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ report.recipient.username }}</td>
+                                        <td><span class="badge text-bg-success">{{ report.status }}</span></td>
+                                        <td>{{ report.created_at.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            {% if current_user.role == 'manager' or current_user.id in [report.sender_id, report.recipient_id] %}
+                                                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.download_report', report_id=report.id) }}">Download</a>
+                                            {% else %}
+                                                <span class="text-muted">Private</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5">
+                                            <div class="empty-state">
+                                                <strong>No reports done.</strong>
+                                                <span>This employee has not sent a report yet.</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="work-panel mt-4">
+                    <div class="panel-title">
+                        <h2>Reports Received</h2>
+                        <span class="report-count">{{ received_reports|length }}</span>
+                    </div>
+                    <div class="compact-list">
+                        {% for report in received_reports %}
+                            {% if current_user.role == 'manager' or current_user.id in [report.sender_id, report.recipient_id] %}
+                                <a href="{{ url_for('routes.download_report', report_id=report.id) }}">
+                            {% else %}
+                                <div class="compact-list-item">
+                            {% endif %}
+                                    <strong>{{ report.title }}</strong>
+                                    <span>{{ report.sender.username if report.sender else 'System' }} sent this on {{ report.created_at.strftime('%Y-%m-%d') }}</span>
+                            {% if current_user.role == 'manager' or current_user.id in [report.sender_id, report.recipient_id] %}
+                                </a>
+                            {% else %}
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="empty-state">
+                                <strong>No received reports.</strong>
+                                <span>This employee has not received a report yet.</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
