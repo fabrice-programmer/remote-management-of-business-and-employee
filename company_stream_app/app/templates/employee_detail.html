@@ -70,10 +70,14 @@
                         <h2>Direct Message</h2>
                         <p class="text-muted">Send a private supervision message to this employee.</p>
 
-                        <form method="POST" action="{{ url_for('routes.send_employee_message', employee_id=employee.id) }}">
+                        <form method="POST" action="{{ url_for('routes.send_employee_message', employee_id=employee.id) }}" enctype="multipart/form-data">
                             <div class="mb-3">
                                 <label class="form-label" for="body">Message</label>
-                                <textarea class="form-control" id="body" name="body" rows="4" placeholder="Write a direct message for this employee" required></textarea>
+                                <textarea class="form-control" id="body" name="body" rows="4" placeholder="Write a direct message for this employee"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="message_document">Attachment</label>
+                                <input class="form-control" id="message_document" name="document" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg">
                             </div>
                             <button class="btn btn-primary w-100" type="submit">Send Message</button>
                         </form>
@@ -83,7 +87,7 @@
                         <h2>Assign Task</h2>
                         <p class="text-muted">Add work this employee needs to complete.</p>
 
-                        <form method="POST" action="{{ url_for('routes.add_employee_task', employee_id=employee.id) }}">
+                        <form method="POST" action="{{ url_for('routes.add_employee_task', employee_id=employee.id) }}" enctype="multipart/form-data">
                             <div class="mb-3">
                                 <label class="form-label" for="title">Task Title</label>
                                 <input class="form-control" id="title" name="title" placeholder="Prepare weekly report" required>
@@ -105,6 +109,11 @@
                                 <label class="form-label" for="description">Details</label>
                                 <textarea class="form-control" id="description" name="description" rows="4" placeholder="Task notes, expected output, or instructions"></textarea>
                             </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="document">Work File</label>
+                                <input class="form-control" id="document" name="document" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg">
+                                <div class="form-text">Optional: attach a document, spreadsheet, presentation, text file, or image.</div>
+                            </div>
                             <button class="btn btn-dark w-100" type="submit">Assign Task</button>
                         </form>
                     </div>
@@ -125,6 +134,28 @@
                                     <strong>{{ task.title }}</strong>
                                     {% if task.description %}
                                         <p>{{ task.description }}</p>
+                                    {% endif %}
+                                    {% if task.stored_filename %}
+                                        <a class="btn btn-sm btn-outline-primary mt-2" href="{{ url_for('routes.download_employee_task', employee_id=employee.id, task_id=task.id) }}">
+                                            Download Work File
+                                        </a>
+                                    {% endif %}
+                                    {% if not is_admin and current_user.id == employee.id %}
+                                        <form class="mt-3" method="POST" action="{{ url_for('routes.submit_employee_task_report', employee_id=employee.id, task_id=task.id) }}" enctype="multipart/form-data">
+                                            <div class="mb-2">
+                                                <label class="form-label" for="report_title_{{ task.id }}">Report Title</label>
+                                                <input class="form-control" id="report_title_{{ task.id }}" name="title" value="Finished Report: {{ task.title }}" required>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label" for="report_document_{{ task.id }}">Finished Report File</label>
+                                                <input class="form-control" id="report_document_{{ task.id }}" name="document" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg" required>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label" for="report_message_{{ task.id }}">Report Notes</label>
+                                                <textarea class="form-control" id="report_message_{{ task.id }}" name="message" rows="3" placeholder="Summarize the completed work, result, or next step"></textarea>
+                                            </div>
+                                            <button class="btn btn-sm btn-success" type="submit">Upload Finished Report</button>
+                                        </form>
                                     {% endif %}
                                 </div>
                                 <div class="task-meta">
@@ -156,11 +187,46 @@
                         <h2>Direct Messages</h2>
                         <span class="report-count">{{ direct_messages|length }}</span>
                     </div>
+                    {% if not is_admin and current_user.id == employee.id %}
+                        {% if admin_users %}
+                            <form class="mb-4" method="POST" action="{{ url_for('routes.reply_employee_message', employee_id=employee.id) }}" enctype="multipart/form-data">
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label" for="recipient_id">Reply To</label>
+                                        <select class="form-select" id="recipient_id" name="recipient_id" required>
+                                            {% for admin in admin_users %}
+                                                <option value="{{ admin.id }}">{{ admin.username }} - {{ admin.role|title }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label" for="reply_document">Attachment</label>
+                                        <input class="form-control" id="reply_document" name="document" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="reply_body">Reply Message</label>
+                                        <textarea class="form-control" id="reply_body" name="body" rows="3" placeholder="Write your answer to admin"></textarea>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary mt-3" type="submit">Send Reply</button>
+                            </form>
+                        {% else %}
+                            <div class="empty-state mb-4">
+                                <strong>No admin account available.</strong>
+                                <span>An admin or manager account is needed before employees can send replies.</span>
+                            </div>
+                        {% endif %}
+                    {% endif %}
                     <div class="compact-list">
                         {% for message in direct_messages %}
                             <div class="compact-list-item">
                                 <strong>{{ message.sender.username }} to {{ message.recipient.username }}</strong>
                                 <span>{{ message.body }}</span>
+                                {% if message.stored_filename %}
+                                    <a class="btn btn-sm btn-outline-primary mt-2" href="{{ url_for('routes.download_direct_message', message_id=message.id) }}">
+                                        Download Attachment
+                                    </a>
+                                {% endif %}
                                 <small>{{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
                             </div>
                         {% else %}

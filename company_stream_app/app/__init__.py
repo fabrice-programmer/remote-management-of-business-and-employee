@@ -38,6 +38,47 @@ def ensure_user_profile_columns():
             if column_name not in existing_columns:
                 connection.execute(text(f'ALTER TABLE user ADD COLUMN {column_name} {column_type}'))
 
+
+def ensure_employee_task_attachment_columns():
+    if db.engine.dialect.name != 'sqlite':
+        return
+
+    inspector = inspect(db.engine)
+    if 'employee_task' not in inspector.get_table_names():
+        return
+
+    existing_columns = {column['name'] for column in inspector.get_columns('employee_task')}
+    attachment_columns = {
+        'original_filename': 'VARCHAR(255)',
+        'stored_filename': 'VARCHAR(255)'
+    }
+
+    with db.engine.begin() as connection:
+        for column_name, column_type in attachment_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(text(f'ALTER TABLE employee_task ADD COLUMN {column_name} {column_type}'))
+
+
+def ensure_direct_message_attachment_columns():
+    if db.engine.dialect.name != 'sqlite':
+        return
+
+    inspector = inspect(db.engine)
+    if 'direct_message' not in inspector.get_table_names():
+        return
+
+    existing_columns = {column['name'] for column in inspector.get_columns('direct_message')}
+    attachment_columns = {
+        'original_filename': 'VARCHAR(255)',
+        'stored_filename': 'VARCHAR(255)'
+    }
+
+    with db.engine.begin() as connection:
+        for column_name, column_type in attachment_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(text(f'ALTER TABLE direct_message ADD COLUMN {column_name} {column_type}'))
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -61,5 +102,7 @@ def create_app():
     with app.app_context():
         db.create_all()
         ensure_user_profile_columns()
+        ensure_employee_task_attachment_columns()
+        ensure_direct_message_attachment_columns()
 
     return app

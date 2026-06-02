@@ -43,6 +43,14 @@ def allowed_document(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_DOCUMENT_EXTENSIONS
 
 
+def store_uploaded_document(document):
+    original_filename = secure_filename(document.filename)
+    extension = original_filename.rsplit('.', 1)[1].lower()
+    stored_filename = f'{uuid4().hex}.{extension}'
+    document.save(os.path.join(current_app.config['UPLOAD_FOLDER'], stored_filename))
+    return original_filename, stored_filename
+
+
 def is_safe_redirect(target):
     if not target:
         return False
@@ -54,6 +62,10 @@ def is_safe_redirect(target):
 
 def department_names():
     return [department['name'] for department in DEPARTMENTS]
+
+
+def admin_users_query():
+    return User.query.filter(User.role.in_(ADMIN_ROLES))
 
 
 def is_admin(user=None):
@@ -343,6 +355,7 @@ def employee_detail(employee_id):
         (DirectMessage.sender_id == employee.id) |
         (DirectMessage.recipient_id == employee.id)
     ).order_by(DirectMessage.created_at.desc()).all()
+    admin_users = admin_users_query().filter(User.id != current_user.id).order_by(User.username.asc()).all()
 
     stats = {
         'sent_reports': len(sent_reports),
@@ -361,6 +374,7 @@ def employee_detail(employee_id):
         received_reports=received_reports,
         tasks=tasks,
         direct_messages=direct_messages,
+        admin_users=admin_users,
         stats=stats,
         is_admin=is_admin()
     )
@@ -375,6 +389,9 @@ def add_employee_task(employee_id):
     description = request.form.get('description', '').strip()
     priority = request.form.get('priority', 'Normal').strip() or 'Normal'
     due_date = request.form.get('due_date', '').strip()
+    document = request.files.get('document')
+    original_filename = None
+    stored_filename = None
 
     if not title:
         flash('Please enter a task title.', 'danger')
@@ -383,11 +400,20 @@ def add_employee_task(employee_id):
     if priority not in {'Low', 'Normal', 'High', 'Urgent'}:
         priority = 'Normal'
 
+    if document and document.filename:
+        if not allowed_document(document.filename):
+            flash('This work file type is not allowed.', 'danger')
+            return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+        original_filename, stored_filename = store_uploaded_document(document)
+
     task = EmployeeTask(
         title=title,
         description=description,
         priority=priority,
         due_date=due_date,
+        original_filename=original_filename,
+        stored_filename=stored_filename,
         employee_id=employee.id,
         assigned_by_id=current_user.id
     )
@@ -395,6 +421,68 @@ def add_employee_task(employee_id):
     db.session.commit()
     flash(f'Task assigned to {employee.full_name or employee.username}.', 'success')
     return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+
+@routes.route('/employees/<int:employee_id>/tasks/<int:task_id>/report', methods=['POST'])
+@login_required
+def submit_employee_task_report(employee_id, task_id):
+    employee = User.query.get_or_404(employee_id)
+    task = EmployeeTask.query.filter_by(id=task_id, employee_id=employee.id).first_or_404()
+    if current_user.id != employee.id:
+        abort(403)
+
+    title = request.form.get('title', '').strip() or f'Finished Report: {task.title}'
+    message = request.form.get('message', '').strip()
+    document = request.files.get('document')
+    recipient = task.assigned_by if task.assigned_by and task.assigned_by.role in ADMIN_ROLES else admin_users_query().first()
+
+    if not recipient:
+        flash('No admin account is available to receive this report.', 'danger')
+        return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+    if not document or document.filename == '':
+        flash('Please upload the finished report file.', 'danger')
+        return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+    if not allowed_document(document.filename):
+        flash('This report file type is not allowed.', 'danger')
+        return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+    original_filename, stored_filename = store_uploaded_document(document)
+    report = ReportDocument(
+        title=title,
+        message=f'Task: {task.title}\n\n{message}' if message else f'Task: {task.title}',
+        original_filename=original_filename,
+        stored_filename=stored_filename,
+        status='Submitted',
+        sender_id=current_user.id,
+        recipient_id=recipient.id
+    )
+    task.status = 'Done'
+
+    db.session.add(report)
+    db.session.commit()
+    flash(f'Finished report sent to {recipient.username}.', 'success')
+    return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+
+@routes.route('/employees/<int:employee_id>/tasks/<int:task_id>/download')
+@login_required
+def download_employee_task(employee_id, task_id):
+    employee = User.query.get_or_404(employee_id)
+    task = EmployeeTask.query.filter_by(id=task_id, employee_id=employee.id).first_or_404()
+    if not can_view_employee(employee):
+        abort(403)
+
+    if not task.stored_filename or not task.original_filename:
+        abort(404)
+
+    return send_from_directory(
+        current_app.config['UPLOAD_FOLDER'],
+        task.stored_filename,
+        as_attachment=True,
+        download_name=task.original_filename
+    )
 
 
 @routes.route('/employees/<int:employee_id>/tasks/<int:task_id>/status', methods=['POST'])
@@ -423,13 +511,25 @@ def send_employee_message(employee_id):
     require_admin()
     employee = User.query.get_or_404(employee_id)
     body = request.form.get('body', '').strip()
+    document = request.files.get('document')
+    original_filename = None
+    stored_filename = None
 
-    if not body:
-        flash('Please enter a message before sending.', 'danger')
+    if not body and (not document or document.filename == ''):
+        flash('Please enter a message or attach a file before sending.', 'danger')
         return redirect(url_for('routes.employee_detail', employee_id=employee.id))
 
+    if document and document.filename:
+        if not allowed_document(document.filename):
+            flash('This message file type is not allowed.', 'danger')
+            return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+        original_filename, stored_filename = store_uploaded_document(document)
+
     message = DirectMessage(
-        body=body,
+        body=body or 'Attached file.',
+        original_filename=original_filename,
+        stored_filename=stored_filename,
         sender_id=current_user.id,
         recipient_id=employee.id
     )
@@ -437,6 +537,67 @@ def send_employee_message(employee_id):
     db.session.commit()
     flash(f'Message sent directly to {employee.full_name or employee.username}.', 'success')
     return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+
+@routes.route('/employees/<int:employee_id>/messages/reply', methods=['POST'])
+@login_required
+def reply_employee_message(employee_id):
+    employee = User.query.get_or_404(employee_id)
+    if current_user.id != employee.id:
+        abort(403)
+
+    recipient_id = request.form.get('recipient_id', type=int)
+    recipient = admin_users_query().filter_by(id=recipient_id).first() if recipient_id else None
+    body = request.form.get('body', '').strip()
+    document = request.files.get('document')
+    original_filename = None
+    stored_filename = None
+
+    if not recipient:
+        flash('Please choose an admin to receive your reply.', 'danger')
+        return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+    if not body and (not document or document.filename == ''):
+        flash('Please enter a reply or attach a file before sending.', 'danger')
+        return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+    if document and document.filename:
+        if not allowed_document(document.filename):
+            flash('This reply file type is not allowed.', 'danger')
+            return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+        original_filename, stored_filename = store_uploaded_document(document)
+
+    message = DirectMessage(
+        body=body or 'Attached file.',
+        original_filename=original_filename,
+        stored_filename=stored_filename,
+        sender_id=current_user.id,
+        recipient_id=recipient.id
+    )
+    db.session.add(message)
+    db.session.commit()
+    flash(f'Reply sent to {recipient.username}.', 'success')
+    return redirect(url_for('routes.employee_detail', employee_id=employee.id))
+
+
+@routes.route('/messages/<int:message_id>/download')
+@login_required
+def download_direct_message(message_id):
+    message = DirectMessage.query.get_or_404(message_id)
+    can_download = current_user.id in {message.sender_id, message.recipient_id}
+    if not can_download and not is_admin():
+        abort(403)
+
+    if not message.stored_filename or not message.original_filename:
+        abort(404)
+
+    return send_from_directory(
+        current_app.config['UPLOAD_FOLDER'],
+        message.stored_filename,
+        as_attachment=True,
+        download_name=message.original_filename
+    )
 
 
 @routes.route('/reports')
@@ -477,10 +638,7 @@ def upload_report():
         flash('This document type is not allowed.', 'danger')
         return redirect(url_for('routes.reports'))
 
-    original_filename = secure_filename(document.filename)
-    extension = original_filename.rsplit('.', 1)[1].lower()
-    stored_filename = f'{uuid4().hex}.{extension}'
-    document.save(os.path.join(current_app.config['UPLOAD_FOLDER'], stored_filename))
+    original_filename, stored_filename = store_uploaded_document(document)
 
     report = ReportDocument(
         title=title,

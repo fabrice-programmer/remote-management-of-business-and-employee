@@ -68,6 +68,8 @@ class ChatMessage(db.Model):
 class DirectMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     body = db.Column(db.Text, nullable=False)
+    original_filename = db.Column(db.String(255), nullable=True)
+    stored_filename = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     read_at = db.Column(db.DateTime, nullable=True)
 
@@ -88,6 +90,8 @@ class EmployeeTask(db.Model):
     status = db.Column(db.String(30), default='To Do')
     priority = db.Column(db.String(20), default='Normal')
     due_date = db.Column(db.String(20), nullable=True)
+    original_filename = db.Column(db.String(255), nullable=True)
+    stored_filename = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     employee_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
