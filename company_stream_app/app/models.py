@@ -28,6 +28,7 @@ class User(db.Model, UserMixin):
     department = db.Column(db.String(80), nullable=True)
     position = db.Column(db.String(100), nullable=True)
     hire_date = db.Column(db.String(20), nullable=True)
+    employee_code = db.Column(db.String(10), unique=True, nullable=True)
 
     def __repr__(self):
         return f'<User {self.username}>'
