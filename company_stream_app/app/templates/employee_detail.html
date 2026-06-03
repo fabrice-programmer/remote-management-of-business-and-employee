@@ -63,6 +63,16 @@
                             <dd>{{ employee.role|title }}</dd>
                         </div>
                     </dl>
+
+                    {% if is_admin %}
+                        <hr>
+                        <div class="d-grid gap-2 mt-3">
+                            <a href="{{ url_for('routes.edit_employee', employee_id=employee.id) }}" class="btn btn-sm btn-warning">Edit Employee</a>
+                            <form method="POST" action="{{ url_for('routes.delete_employee', employee_id=employee.id) }}" onsubmit="return confirm('Are you sure? This will delete the employee account.');">
+                                <button class="btn btn-sm btn-danger w-100" type="submit">Delete Employee</button>
+                            </form>
+                        </div>
+                    {% endif %}
                 </div>
 
                 {% if is_admin %}
@@ -85,9 +95,47 @@
 
                     <div class="work-panel mt-4">
                         <h2>Assign Task</h2>
-                        <p class="text-muted">Add work this employee needs to complete.</p>
+                        <p class="text-muted small">Delegate work to individuals or entire departments.</p>
 
-                        <form method="POST" action="{{ url_for('routes.add_employee_task', employee_id=employee.id) }}" enctype="multipart/form-data">
+                        <form method="POST" action="{{ url_for('routes.assign_global_task') }}" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Assignment Scope</label>
+                                <select class="form-select bg-light" name="assignment_type" id="assignment_type" onchange="toggleTaskScope()">
+                                    <option value="individual">Specific Employee</option>
+                                    <option value="department">Entire Department</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3" id="scope-individual">
+                                <label class="form-label">Select Employee</label>
+                                <select class="form-select" name="target_user_id">
+                                    {% set current_dept = namespace(name="____START____") %}
+                                    {% for u in all_users %}
+                                        {% set u_dept = u.department if u.department else 'Unassigned' %}
+                                        {% if u_dept != current_dept.name %}
+                                            {% if not loop.first %}</optgroup>{% endif %}
+                                            <optgroup label="{{ u_dept }}">
+                                            {% set current_dept.name = u_dept %}
+                                        {% endif %}
+                                        <option value="{{ u.id }}" {% if u.id == employee.id %}selected{% endif %}>
+                                            {{ u.full_name or u.username }}
+                                        </option>
+                                        {% if loop.last %}</optgroup>{% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3 d-none" id="scope-department">
+                                <label class="form-label">Select Department</label>
+                                <select class="form-select" name="target_department">
+                                    {% for dept in department_list %}
+                                        <option value="{{ dept }}">{{ dept }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <hr>
+
                             <div class="mb-3">
                                 <label class="form-label" for="title">Task Title</label>
                                 <input class="form-control" id="title" name="title" placeholder="Prepare weekly report" required>
@@ -112,11 +160,27 @@
                             <div class="mb-3">
                                 <label class="form-label" for="document">Work File</label>
                                 <input class="form-control" id="document" name="document" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg">
-                                <div class="form-text">Optional: attach a document, spreadsheet, presentation, text file, or image.</div>
+                                <div class="form-text">Optional: attach a document, spreadsheet, presentation, text file, image, or video.</div>
                             </div>
                             <button class="btn btn-dark w-100" type="submit">Assign Task</button>
                         </form>
                     </div>
+
+                    <script>
+                        function toggleTaskScope() {
+                            const type = document.getElementById('assignment_type').value;
+                            const indArea = document.getElementById('scope-individual');
+                            const deptArea = document.getElementById('scope-department');
+                            
+                            if (type === 'individual') {
+                                indArea.classList.remove('d-none');
+                                deptArea.classList.add('d-none');
+                            } else {
+                                indArea.classList.add('d-none');
+                                deptArea.classList.remove('d-none');
+                            }
+                        }
+                    </script>
                 {% endif %}
             </div>
 
@@ -162,15 +226,23 @@
                                     <span>{{ task.status }}</span>
                                     <small>Due {{ task.due_date or 'not set' }}</small>
                                     <small>Assigned by {{ task.assigned_by.username }}</small>
-                                    <form method="POST" action="{{ url_for('routes.update_employee_task_status', employee_id=employee.id, task_id=task.id) }}">
-                                        {% if task.status == 'Done' %}
-                                            <input type="hidden" name="status" value="To Do">
-                                            <button class="btn btn-sm btn-outline-primary" type="submit">Reopen</button>
-                                        {% else %}
-                                            <input type="hidden" name="status" value="Done">
-                                            <button class="btn btn-sm btn-dark" type="submit">Mark Done</button>
+                                    <div class="d-flex gap-2 mt-2 flex-wrap">
+                                        <form method="POST" action="{{ url_for('routes.update_employee_task_status', employee_id=employee.id, task_id=task.id) }}" style="display:inline;">
+                                            {% if task.status == 'Done' %}
+                                                <input type="hidden" name="status" value="To Do">
+                                                <button class="btn btn-sm btn-outline-primary" type="submit">Reopen</button>
+                                            {% else %}
+                                                <input type="hidden" name="status" value="Done">
+                                                <button class="btn btn-sm btn-dark" type="submit">Mark Done</button>
+                                            {% endif %}
+                                        </form>
+                                        {% if is_admin %}
+                                            <a href="{{ url_for('routes.edit_task', task_id=task.id) }}" class="btn btn-sm btn-warning">Edit</a>
+                                            <form method="POST" action="{{ url_for('routes.delete_task', task_id=task.id) }}" style="display:inline;" onsubmit="return confirm('Delete this task?');">
+                                                <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+                                            </form>
                                         {% endif %}
-                                    </form>
+                                    </div>
                                 </div>
                             </article>
                         {% else %}
@@ -226,6 +298,11 @@
                                     <a class="btn btn-sm btn-outline-primary mt-2" href="{{ url_for('routes.download_direct_message', message_id=message.id) }}">
                                         Download Attachment
                                     </a>
+                                {% endif %}
+                                {% if is_admin %}
+                                    <form method="POST" action="{{ url_for('routes.delete_direct_message', message_id=message.id) }}" style="display:inline;" onsubmit="return confirm('Delete this message?');">
+                                        <button class="btn btn-sm btn-danger mt-2" type="submit">Delete</button>
+                                    </form>
                                 {% endif %}
                                 <small>{{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
                             </div>

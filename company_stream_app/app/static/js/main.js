@@ -21,6 +21,20 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 3200);
     }
 
+    // Scroll-reveal effect for elements with .animate-in
+    const revealElements = document.querySelectorAll(".animate-in");
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add("visible");
+                // Stop observing after the animation has triggered
+                revealObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1 });
+
+    revealElements.forEach((el) => revealObserver.observe(el));
+
     const counters = document.querySelectorAll("[data-count]");
 
     const animateCounter = (counter) => {

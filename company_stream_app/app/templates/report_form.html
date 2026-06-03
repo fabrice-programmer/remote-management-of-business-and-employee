@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ action }} Report
+{% endblock %}
+
+{% block content %}
+
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Report Management</p>
+                <h1>{{ action }} Report</h1>
+            </div>
+            <a href="{{ url_for('routes.reports') }}" class="btn btn-outline-primary">Back to Reports</a>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="work-panel">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label" for="title">Report Title *</label>
+                            <input class="form-control" id="title" name="title" value="{{ report.title or '' }}" placeholder="Report title" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="message">Report Details/Message</label>
+                            <textarea class="form-control" id="message" name="message" rows="6" placeholder="Enter report details, findings, or messages">{{ report.message or '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="status">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="Sent" {% if not report or report.status == 'Sent' %}selected{% endif %}>Sent</option>
+                                <option value="Submitted" {% if report and report.status == 'Submitted' %}selected{% endif %}>Submitted</option>
+                                <option value="Reviewed" {% if report and report.status == 'Reviewed' %}selected{% endif %}>Reviewed</option>
+                                <option value="Approved" {% if report and report.status == 'Approved' %}selected{% endif %}>Approved</option>
+                                <option value="Rejected" {% if report and report.status == 'Rejected' %}selected{% endif %}>Rejected</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" type="submit">{{ action }} Report</button>
+                            <a href="{{ url_for('routes.reports') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="work-panel">
+                    <h3>Report Information</h3>
+                    <p class="text-muted text-small">
+                        Update report details and track status through the review process.
+                    </p>
+                    
+                    {% if report %}
+                        <hr>
+                        
+                        <h5>From:</h5>
+                        <p>
+                            <strong>{{ report.sender.full_name or report.sender.username if report.sender else 'System' }}</strong>
+                            <br>
+                            <small class="text-muted">{{ report.sender.email if report.sender else 'N/A' }}</small>
+                        </p>
+
+                        <h5>To:</h5>
+                        <p>
+                            <strong>{{ report.recipient.full_name or report.recipient.username }}</strong>
+                            <br>
+                            <small class="text-muted">{{ report.recipient.email }}</small>
+                        </p>
+
+                        <h5>File:</h5>
+                        <p>
+                            <small>{{ report.original_filename or 'N/A' }}</small>
+                        </p>
+
+                        <h5>Created:</h5>
+                        <p>
+                            <small>{{ report.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

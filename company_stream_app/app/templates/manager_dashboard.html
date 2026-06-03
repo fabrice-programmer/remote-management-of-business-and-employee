@@ -15,7 +15,10 @@ Announcements
                 <p>{% if is_admin %}Publish company updates and keep work visible across departments, chat, and reports.{% else %}Publish an announcement and follow the latest company updates.{% endif %}</p>
             </div>
             {% if is_admin %}
-                <a href="{{ url_for('routes.reports') }}" class="btn btn-primary">Review Reports</a>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('routes.home_media') }}" class="btn btn-success">Manage Home Media</a>
+                    <a href="{{ url_for('routes.reports') }}" class="btn btn-primary">Review Reports</a>
+                </div>
             {% else %}
                 <a href="{{ url_for('routes.employee_detail', employee_id=current_user.id) }}" class="btn btn-primary">Review Account</a>
             {% endif %}
@@ -72,6 +75,14 @@ Announcements
                                 <strong>{{ update.title }}</strong>
                                 <p>{{ update.body }}</p>
                                 <small>{{ update.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                {% if is_admin %}
+                                    <div class="d-flex gap-2 mt-2">
+                                        <a href="{{ url_for('routes.edit_update', update_id=update.id) }}" class="btn btn-sm btn-warning">Edit</a>
+                                        <form method="POST" action="{{ url_for('routes.delete_update', update_id=update.id) }}" style="display:inline;" onsubmit="return confirm('Delete this update?');">
+                                            <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+                                        </form>
+                                    </div>
+                                {% endif %}
                             </article>
                         {% else %}
                             <div class="empty-state">

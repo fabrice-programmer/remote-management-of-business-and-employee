@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ action }} Employee
+{% endblock %}
+
+{% block content %}
+
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Employee Management</p>
+                <h1>{{ action }} Employee</h1>
+                {% if employee %}
+                    <p>{{ employee.email }}</p>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('routes.employee_detail', employee_id=employee.id) if employee else url_for('routes.departments') }}" class="btn btn-outline-primary">Go Back</a>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="work-panel">
+                    <form method="POST">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="full_name">Full Name *</label>
+                                <input class="form-control" id="full_name" name="full_name" value="{{ employee.full_name or '' }}" placeholder="John Doe" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="email">Email Address *</label>
+                                <input class="form-control" id="email" name="email" type="email" value="{{ employee.email or '' }}" placeholder="john@company.com" required>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="department">Department *</label>
+                                <select class="form-select" id="department" name="department" required>
+                                    <option value="">Select a department...</option>
+                                    {% for dept in department_list %}
+                                        <option value="{{ dept }}" {% if employee and employee.department == dept %}selected{% endif %}>{{ dept }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="position">Position *</label>
+                                <input class="form-control" id="position" name="position" value="{{ employee.position or '' }}" placeholder="e.g., Senior Manager" required>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="phone">Phone Number</label>
+                                <input class="form-control" id="phone" name="phone" value="{{ employee.phone or '' }}" placeholder="+1 (555) 123-4567">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="hire_date">Start Date</label>
+                                <input class="form-control" id="hire_date" name="hire_date" type="date" value="{{ employee.hire_date or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="role">Account Role</label>
+                            <select class="form-select" id="role" name="role">
+                                <option value="employee" {% if employee and employee.role == 'employee' %}selected{% endif %}>Employee</option>
+                                <option value="manager" {% if employee and employee.role == 'manager' %}selected{% endif %}>Manager</option>
+                                <option value="admin" {% if employee and employee.role == 'admin' %}selected{% endif %}>Admin</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" type="submit">{{ action }} Employee</button>
+                            <a href="{{ url_for('routes.employee_detail', employee_id=employee.id) if employee else url_for('routes.departments') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="work-panel">
+                    <h3>Information</h3>
+                    <p class="text-muted text-small">
+                        Update employee details. All changes take effect immediately. Mark employees as managers or admins to grant system access.
+                    </p>
+                    
+                    {% if employee %}
+                        <hr>
+                        <h5>Account Details</h5>
+                        <dl class="text-small">
+                            <div>
+                                <dt>Username</dt>
+                                <dd>{{ employee.username }}</dd>
+                            </div>
+                            <div>
+                                <dt>Employee Number</dt>
+                                <dd>{{ employee.employee_number or 'Not set' }}</dd>
+                            </div>
+                            <div>
+                                <dt>Account Created</dt>
+                                <dd>{{ employee.id }} (ID)</dd>
+                            </div>
+                        </dl>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

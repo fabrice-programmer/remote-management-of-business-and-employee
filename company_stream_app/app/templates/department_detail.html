@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ department.name }} Department
+{% endblock %}
+
+{% block content %}
+
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Department Management</p>
+                <h1>{{ department.name }}</h1>
+                <p>{{ department.summary }}</p>
+            </div>
+            <a href="{{ url_for('routes.departments') }}" class="btn btn-outline-primary">Back to Departments</a>
+        </div>
+
+        <!-- Department Overview -->
+        <div class="stat-grid mb-4">
+            <div class="stat-card"><span>{{ employee_details|length }}</span><strong>Total Employees</strong></div>
+            <div class="stat-card"><span>{{ department.status }}</span><strong>Department Status</strong></div>
+            <div class="stat-card"><span>{{ department.lead }}</span><strong>Department Lead</strong></div>
+        </div>
+
+        <!-- Task Assignment Form -->
+        <div class="work-panel mb-4">
+            <h2>Assign Task to Team Member</h2>
+            <p class="text-muted">Create and assign a task to one or more employees in this department.</p>
+
+            <form method="POST" action="{{ url_for('routes.assign_global_task') }}" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Assign To</label>
+                    <select class="form-select bg-light" name="assignment_type" id="assignment_type" onchange="toggleTaskScope()">
+                        <option value="individual">Specific Employee</option>
+                        <option value="department">All {{ department.name }} Employees</option>
+                    </select>
+                </div>
+
+                <div class="mb-3" id="scope-individual">
+                    <label class="form-label">Select Employee</label>
+                    <select class="form-select" name="target_user_id">
+                        {% set current_dept = namespace(name="____START____") %}
+                        {% for emp_detail in employee_details %}
+                            {% set u = emp_detail.user %}
+                            {% set u_dept = u.department if u.department else 'Unassigned' %}
+                            {% if u_dept != current_dept.name %}
+                                {% if not loop.first %}</optgroup>{% endif %}
+                                <optgroup label="{{ u_dept }}">
+                                {% set current_dept.name = u_dept %}
+                            {% endif %}
+                            <option value="{{ u.id }}">
+                                {{ u.full_name or u.username }}
+                            </option>
+                            {% if loop.last %}</optgroup>{% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3 d-none" id="scope-department">
+                    <input type="hidden" name="target_department" value="{{ department.name }}">
+                    <div class="alert alert-info">
+                        This task will be assigned to all <strong>{{ employee_details|length }}</strong> employee(s) in {{ department.name }}.
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="mb-3">
+                    <label class="form-label" for="title">Task Title</label>
+                    <input class="form-control" id="title" name="title" placeholder="e.g., Prepare quarterly report" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="priority">Priority</label>
+                    <select class="form-select" id="priority" name="priority">
+                        <option>Normal</option>
+                        <option>High</option>
+                        <option>Urgent</option>
+                        <option>Low</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="due_date">Due Date</label>
+                    <input class="form-control" id="due_date" name="due_date" type="date">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="description">Task Details</label>
+                    <textarea class="form-control" id="description" name="description" rows="4" placeholder="Task instructions, expected deliverables, notes..."></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="document">Attachment (Optional)</label>
+                    <input class="form-control" id="document" name="document" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg">
+                    <div class="form-text">Attach a document, spreadsheet, image, video, or other file for the task.</div>
+                </div>
+
+                <button class="btn btn-primary w-100" type="submit">Assign Task</button>
+            </form>
+
+            <script>
+                function toggleTaskScope() {
+                    const type = document.getElementById('assignment_type').value;
+                    const indArea = document.getElementById('scope-individual');
+                    const deptArea = document.getElementById('scope-department');
+                    
+                    if (type === 'individual') {
+                        indArea.classList.remove('d-none');
+                        deptArea.classList.add('d-none');
+                    } else {
+                        indArea.classList.add('d-none');
+                        deptArea.classList.remove('d-none');
+                    }
+                }
+            </script>
+        </div>
+
+        <!-- Employees List -->
+        {% if employee_details %}
+            <div>
+                <h2 class="mb-4">Team Members</h2>
+                <div class="row g-4">
+                    {% for emp_detail in employee_details %}
+                        <div class="col-lg-6">
+                            <div class="work-panel h-100">
+                                <!-- Employee Header -->
+                                <div class="d-flex align-items-start gap-3 mb-4">
+                                    <div class="employee-avatar" style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                        {{ (emp_detail.user.full_name or emp_detail.user.username)[:1].upper() }}
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h3 class="mb-1">{{ emp_detail.user.full_name or emp_detail.user.username }}</h3>
+                                        <p class="text-muted mb-0">{{ emp_detail.user.position or 'Employee' }}</p>
+                                        <small class="text-secondary">{{ emp_detail.user.email }}</small>
+                                    </div>
+                                </div>
+
+                                <!-- Employee Stats -->
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <div class="stat-mini">
+                                            <span>{{ emp_detail.stats.open_tasks }}</span>
+                                            <strong>Open Tasks</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-mini">
+                                            <span>{{ emp_detail.stats.completed_tasks }}</span>
+                                            <strong>Completed</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-mini">
+                                            <span>{{ emp_detail.stats.sent_reports }}</span>
+                                            <strong>Reports Sent</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-mini">
+                                            <span>{{ emp_detail.stats.received_reports }}</span>
+                                            <strong>Reports Received</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Employee Details -->
+                                <dl class="employee-detail-list mb-4" style="font-size: 0.9rem;">
+                                    <div>
+                                        <dt>Employee Number</dt>
+                                        <dd>{{ emp_detail.user.employee_number or 'Not set' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Phone</dt>
+                                        <dd>{{ emp_detail.user.phone or 'Not set' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Start Date</dt>
+                                        <dd>{{ emp_detail.user.hire_date or 'Not set' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Account Role</dt>
+                                        <dd>{{ emp_detail.user.role|title }}</dd>
+                                    </div>
+                                </dl>
+
+                                <!-- Recent Tasks -->
+                                <div class="mb-3">
+                                    <h5 class="mb-2">Recent Tasks</h5>
+                                    {% if emp_detail.tasks %}
+                                        <div class="task-list-compact">
+                                            {% for task in emp_detail.tasks %}
+                                                <div class="task-item-mini">
+                                                    <div class="d-flex justify-content-between align-items-start gap-2">
+                                                        <div>
+                                                            <span class="task-priority priority-{{ task.priority|lower }} text-xs">{{ task.priority }}</span>
+                                                            <strong>{{ task.title }}</strong>
+                                                        </div>
+                                                        <span class="badge bg-secondary text-xs">{{ task.status }}</span>
+                                                    </div>
+                                                    {% if task.due_date %}
+                                                        <small class="text-muted">Due: {{ task.due_date }}</small>
+                                                    {% endif %}
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <div class="text-muted small">No tasks assigned yet.</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="d-grid gap-2">
+                                    <a href="{{ url_for('routes.employee_detail', employee_id=emp_detail.user.id) }}" class="btn btn-sm btn-outline-primary">
+                                        View Full Profile
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% else %}
+            <div class="work-panel text-center py-5">
+                <h3>No Employees Yet</h3>
+                <p class="text-muted">There are no employees in this department. Use the "Add Employee" button on the departments page to get started.</p>
+                <a href="{{ url_for('routes.departments') }}" class="btn btn-primary">Go Back to Departments</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+<style>
+    .stat-mini {
+        padding: 0.75rem;
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        text-align: center;
+    }
+
+    .stat-mini span {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #212529;
+    }
+
+    .stat-mini strong {
+        display: block;
+        font-size: 0.75rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 0.25rem;
+    }
+
+    .task-list-compact {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .task-item-mini {
+        padding: 0.75rem;
+        background: #f8f9fa;
+        border-left: 3px solid #dee2e6;
+        border-radius: 0.25rem;
+        font-size: 0.85rem;
+    }
+
+    .task-priority.priority-normal {
+        background-color: #e7f3ff;
+        color: #0056b3;
+    }
+
+    .task-priority.priority-high {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .task-priority.priority-urgent {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .task-priority.priority-low {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .text-xs {
+        font-size: 0.65rem;
+    }
+
+    .employee-detail-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .employee-detail-list div {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .employee-detail-list dt {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .employee-detail-list dd {
+        margin: 0;
+        color: #212529;
+    }
+</style>
+
+{% endblock %}

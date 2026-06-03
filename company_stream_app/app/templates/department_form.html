@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ action }} Department
+{% endblock %}
+
+{% block content %}
+
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Department Management</p>
+                <h1>{{ action }} Department</h1>
+            </div>
+            <a href="{{ url_for('routes.departments') }}" class="btn btn-outline-primary">Back to Departments</a>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="work-panel">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label" for="name">Department Name *</label>
+                            <input class="form-control" id="name" name="name" value="{{ department.name or '' }}" placeholder="e.g., Operations" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="lead">Department Lead</label>
+                            <input class="form-control" id="lead" name="lead" value="{{ department.lead or '' }}" placeholder="e.g., Operations Manager">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="summary">Summary/Description</label>
+                            <textarea class="form-control" id="summary" name="summary" rows="4" placeholder="Describe the department's purpose and responsibilities">{{ department.summary or '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="status">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="Active" {% if department and department.status == 'Active' %}selected{% endif %}>Active</option>
+                                <option value="Inactive" {% if department and department.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                                <option value="Reviewing" {% if department and department.status == 'Reviewing' %}selected{% endif %}>Reviewing</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" type="submit">{{ action }} Department</button>
+                            <a href="{{ url_for('routes.departments') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="work-panel">
+                    <h3>Information</h3>
+                    <p class="text-muted">
+                        {{ action }} a department in your organization. Each department can have multiple employees and manage their own communications, tasks, and reports.
+                    </p>
+                    
+                    <hr>
+                    
+                    <h5>Fields:</h5>
+                    <ul class="text-small">
+                        <li><strong>Department Name:</strong> The unique name of the department (required)</li>
+                        <li><strong>Department Lead:</strong> The person responsible for leading this department</li>
+                        <li><strong>Summary:</strong> A brief description of what the department does</li>
+                        <li><strong>Status:</strong> Whether the department is currently active, inactive, or under review</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

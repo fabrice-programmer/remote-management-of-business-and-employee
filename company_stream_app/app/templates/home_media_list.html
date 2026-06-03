@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Homepage Media Settings
+{% endblock %}
+
+{% block content %}
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Homepage content</p>
+                <h1>Manage Home Page Media</h1>
+                <p>Upload or update the hero banner, featured images, or homepage videos that appear on the public landing page.</p>
+            </div>
+            <a href="{{ url_for('routes.create_home_media') }}" class="btn btn-success">Add Media</a>
+        </div>
+
+        <div class="work-panel">
+            {% if assets %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Title</th>
+                                <th>Description</th>
+                                <th>Media</th>
+                                <th>Order</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in assets %}
+                                <tr>
+                                    <td>{{ asset.asset_type.title() }}</td>
+                                    <td>{{ asset.title or 'No title' }}</td>
+                                    <td>{{ asset.description or 'No description' }}</td>
+                                    <td>{{ asset.media_type.title() }}</td>
+                                    <td>{{ asset.order }}</td>
+                                    <td>
+                                        <a href="{{ url_for('routes.edit_home_media', asset_id=asset.id) }}" class="btn btn-sm btn-warning">Edit</a>
+                                        <form method="POST" action="{{ url_for('routes.delete_home_media', asset_id=asset.id) }}" style="display:inline;" onsubmit="return confirm('Delete this homepage media asset?');">
+                                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <strong>No homepage media assets configured yet.</strong>
+                    <span>Use the button above to upload a hero image, feature media, or video.</span>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -33,9 +33,17 @@ Reports
                             <div class="mb-3">
                                 <label for="recipient_id" class="form-label">Send To</label>
                                 <select class="form-select" id="recipient_id" name="recipient_id" required>
-                                    <option value="">Choose an account</option>
+                                    <option value="">Choose a recipient...</option>
+                                    {% set current_dept = namespace(name="____START____") %}
                                     {% for user in users %}
-                                        <option value="{{ user.id }}">{{ user.username }} - {{ user.email }}</option>
+                                        {% set user_dept = user.department if user.department else 'Unassigned' %}
+                                        {% if user_dept != current_dept.name %}
+                                            {% if not loop.first %}</optgroup>{% endif %}
+                                            <optgroup label="{{ user_dept }}">
+                                            {% set current_dept.name = user_dept %}
+                                        {% endif %}
+                                        <option value="{{ user.id }}">{{ user.full_name or user.username }} ({{ user.email }})</option>
+                                        {% if loop.last %}</optgroup>{% endif %}
                                     {% endfor %}
                                 </select>
                             </div>
@@ -43,7 +51,7 @@ Reports
                             <div class="mb-3">
                                 <label for="document" class="form-label">Document</label>
                                 <input type="file" class="form-control" id="document" name="document" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg" required>
-                                <div class="form-text">PDF, Word, Excel, PowerPoint, text, and image files are supported.</div>
+                                <div class="form-text">PDF, Word, Excel, PowerPoint, text, image, and video files are supported.</div>
                             </div>
 
                             <div class="mb-3">
@@ -64,57 +72,102 @@ Reports
 
             <div class="col-lg-7">
                 <div class="report-panel">
-                    <div class="table-heading">
-                        <div>
-                            <h2>Sent Documents</h2>
-                            <p class="text-muted">Documents uploaded through the reports session.</p>
-                        </div>
-                        <span class="report-count">{{ reports|length }}</span>
-                    </div>
+                    <ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="all-reports-tab" data-bs-toggle="tab" data-bs-target="#all-reports" type="button" role="tab">Sent Documents</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="missing-reports-tab" data-bs-toggle="tab" data-bs-target="#missing-reports" type="button" role="tab">
+                                Missing Submissions 
+                                <span class="badge bg-danger ms-1">{{ missing_users|length }}</span>
+                            </button>
+                        </li>
+                    </ul>
 
-                    <div class="table-responsive">
-                        <table class="table report-table align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Title</th>
-                                    <th>Recipient</th>
-                                    <th>Sender</th>
-                                    <th>Status</th>
-                                    <th>Date</th>
-                                    <th>File</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for report in reports %}
-                                    <tr>
-                                        <td>
-                                            <strong>{{ report.title }}</strong>
-                                            {% if report.message %}
-                                                <small>{{ report.message }}</small>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ report.recipient.username }}</td>
-                                        <td>{{ report.sender.username if report.sender else 'System' }}</td>
-                                        <td><span class="badge text-bg-success">{{ report.status }}</span></td>
-                                        <td>{{ report.created_at.strftime('%Y-%m-%d') }}</td>
-                                        <td>
-                                            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.download_report', report_id=report.id) }}">
-                                                Download
-                                            </a>
-                                        </td>
-                                    </tr>
+                    <div class="tab-content" id="reportTabsContent">
+                        <!-- Tab 1: All Sent Reports -->
+                        <div class="tab-pane fade show active" id="all-reports" role="tabpanel">
+                            <div class="table-heading mb-3">
+                                <div>
+                                    <h2>Sent Documents</h2>
+                                    <p class="text-muted small">Documents uploaded through the reports session.</p>
+                                </div>
+                                <span class="report-count">{{ reports|length }}</span>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table report-table align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Recipient</th>
+                                            <th>Sender</th>
+                                            <th>Date</th>
+                                            <th>File</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for report in reports %}
+                                            <tr>
+                                                <td>
+                                                    <strong>{{ report.title }}</strong>
+                                                    {% if report.message %}<br><small class="text-muted">{{ report.message|truncate(40) }}</small>{% endif %}
+                                                </td>
+                                                <td>{{ report.recipient.username }}</td>
+                                                <td><span class="badge bg-light text-dark">{{ report.sender.username if report.sender else 'System' }}</span></td>
+                                                <td>{{ report.created_at.strftime('%Y-%m-%d') }}</td>
+                                                <td>
+                                                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.download_report', report_id=report.id) }}">Download</a>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <a href="{{ url_for('routes.edit_report', report_id=report.id) }}" class="btn btn-warning" title="Edit">Edit</a>
+                                                        <form method="POST" action="{{ url_for('routes.delete_report', report_id=report.id) }}" style="display:inline;" onsubmit="return confirm('Delete this report?');">
+                                                            <button class="btn btn-danger" type="submit" title="Delete">Delete</button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="6" class="text-center py-4 text-muted">No documents uploaded yet.</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: Missing Submissions -->
+                        <div class="tab-pane fade" id="missing-reports" role="tabpanel">
+                            <div class="table-heading mb-3">
+                                <div>
+                                    <h2>Pending Submissions</h2>
+                                    <p class="text-muted small">Employees who have not yet sent any report documents.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-list">
+                                {% set current_m_dept = namespace(name="____START____") %}
+                                {% for m_user in missing_users %}
+                                    {% set user_dept = m_user.department if m_user.department else 'Unassigned' %}
+                                    {% if user_dept != current_m_dept.name %}
+                                        <div class="bg-light p-2 mt-3 mb-2 fw-bold rounded border-start border-primary border-4">{{ user_dept }}</div>
+                                        {% set current_m_dept.name = user_dept %}
+                                    {% endif %}
+                                    <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                                        <span>{{ m_user.full_name or m_user.username }} <small class="text-muted">({{ m_user.email }})</small></span>
+                                        <a href="{{ url_for('routes.employee_detail', employee_id=m_user.id) }}" class="btn btn-sm btn-link">View Profile</a>
+                                    </div>
                                 {% else %}
-                                    <tr>
-                                        <td colspan="6">
-                                            <div class="empty-state">
-                                                <strong>No documents yet.</strong>
-                                                <span>Use the upload form to send the first report.</span>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                    <div class="empty-state">
+                                        <strong>Perfect!</strong>
+                                        <span>All employees have submitted at least one report.</span>
+                                    </div>
                                 {% endfor %}
-                            </tbody>
-                        </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

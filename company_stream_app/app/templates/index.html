@@ -1,57 +1,216 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fab Stream Platform - Home</title>
-    <style>
-        body { font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .faq-section { margin-top: 50px; border-top: 2px solid #eee; padding-top: 20px; }
-        .faq-item { margin-bottom: 20px; }
-        .faq-item h3 { color: #2c3e50; margin-bottom: 5px; }
-        .faq-item p { margin: 0; color: #555; }
-        .highlight { font-weight: bold; color: #e74c3c; }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>Welcome to Fab Stream Platform</h1>
-        <p>Your internal corporate solution for media streaming and management.</p>
-    </header>
+{% extends 'base.html' %}
 
-    <main>
-        <section class="faq-section">
-            <h2>Frequently Asked Questions (FAQ)</h2>
+{% block title %}
+Home - Fab Stream Business Platform
+{% endblock %}
 
-            <div class="faq-item">
-                <h3>What is the Fab Stream Platform?</h3>
-                <p>It is a secure, internal streaming service designed for our company to upload, manage, and view media content in a centralized environment.</p>
+{% block content %}
+<style>
+    .hero-section {
+        background-size: cover;
+        background-position: center;
+        min-height: 60vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-bottom: 4rem;
+        border-radius: 0 0 40px 40px;
+        position: relative;
+        overflow: hidden;
+    }
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7));
+        z-index: 1;
+    }
+    .hero-section .hero-media {
+        position: absolute;
+        inset: 0;
+        object-fit: cover;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+    }
+    .hero-section .hero-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .hero-section .hero-content {
+        position: relative;
+        z-index: 2;
+    }
+    .animate-in {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.8s ease-out;
+    }
+    .animate-in.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .feature-img {
+        height: 250px;
+        width: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+    .feature-img:hover {
+        transform: scale(1.05);
+    }
+    #dynamic-message {
+        transition: opacity 0.5s ease;
+    }
+</style>
+
+<section class="app-page">
+    {% if hero_media and hero_media.media_type == 'video' %}
+        <div class="hero-section text-center">
+            <video class="hero-media hero-video" autoplay muted loop playsinline>
+                <source src="{{ url_for('routes.uploaded_file', filename=hero_media.stored_filename) }}" type="video/{{ hero_media.original_filename.rsplit('.', 1)[1].lower() }}">
+                Your browser does not support video playback.
+            </video>
+            <div class="hero-content container animate-in">
+                <p class="text-uppercase fw-bold mb-2" style="letter-spacing: 3px; color: #3498db;">Corporate Intelligence</p>
+                <h1 class="display-3 fw-bold mb-3">Welcome to Fab Stream</h1>
+                <p class="lead fs-3 mb-4" id="dynamic-message">Connecting teams through secure internal collaboration.</p>
+                {% if not current_user.is_authenticated %}
+                    <div class="d-flex justify-content-center gap-3 mt-4">
+                        <a href="{{ url_for('routes.login') }}" class="btn btn-primary btn-lg px-5 shadow">Employee Login</a>
+                    </div>
+                    <p class="text-muted mt-3">This platform is private and accessible only to authorized employees.</p>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="hero-section text-center" style="background-image: url('{{ url_for('routes.uploaded_file', filename=hero_media.stored_filename) if hero_media else homepage_defaults.hero_image }}');">
+            <div class="hero-content container animate-in">
+                <p class="text-uppercase fw-bold mb-2" style="letter-spacing: 3px; color: #3498db;">Corporate Intelligence</p>
+                <h1 class="display-3 fw-bold mb-3">Welcome to Fab Stream</h1>
+                <p class="lead fs-3 mb-4" id="dynamic-message">Connecting teams through secure internal collaboration.</p>
+                {% if not current_user.is_authenticated %}
+                    <div class="d-flex justify-content-center gap-3 mt-4">
+                        <a href="{{ url_for('routes.login') }}" class="btn btn-primary btn-lg px-5 shadow">Employee Login</a>
+                    </div>
+                    <p class="text-muted mt-3">This platform is private and available only to authorized employees.</p>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="container">
+        <div class="row g-4 mb-5 text-center animate-in">
+            <div class="col-md-4">
+                <div class="work-panel h-100">
+                    <h3 class="display-5 fw-bold text-primary"><span data-count="12">0</span>+</h3>
+                    <p class="text-muted mb-0">Active Departments</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="work-panel h-100 position-relative">
+                    <span class="badge bg-dark position-absolute top-0 end-0 m-2" id="office-clock">00:00</span>
+                    <h3 class="display-5 fw-bold text-success"><span data-count="1450">0</span>+</h3>
+                    <p class="text-muted mb-0">Shared Reports</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="work-panel h-100">
+                    <h3 class="display-5 fw-bold text-warning"><span data-count="85">0</span>%</h3>
+                    <p class="text-muted mb-0">Task Efficiency</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-5 g-4 animate-in">
+            {% if feature_media %}
+                {% for feature in feature_media %}
+                    <div class="col-lg-4">
+                        {% if feature.media_type == 'video' %}
+                            <video class="img-fluid rounded shadow feature-img" controls>
+                                <source src="{{ url_for('routes.uploaded_file', filename=feature.stored_filename) }}" type="video/{{ feature.original_filename.rsplit('.', 1)[1].lower() }}">
+                                Your browser does not support embedded videos.
+                            </video>
+                        {% else %}
+                            <img src="{{ url_for('routes.uploaded_file', filename=feature.stored_filename) }}" class="img-fluid rounded shadow feature-img" alt="{{ feature.title or 'Homepage feature' }}">
+                        {% endif %}
+                        <div class="mt-3">
+                            <strong>{{ feature.title or 'Featured media' }}</strong>
+                            <p class="text-muted mb-0">{{ feature.description or 'Upload a custom image or video to highlight company features.' }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+                {% for _ in range(3 - feature_media|length) %}
+                    {% set default = homepage_defaults.feature_images[loop.index0] %}
+                    <div class="col-lg-4">
+                        <img src="{{ default.src }}" class="img-fluid rounded shadow feature-img" alt="{{ default.alt }}">
+                        <div class="mt-3">
+                            <strong>{{ default.title }}</strong>
+                            <p class="text-muted mb-0">{{ default.description }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                {% for default in homepage_defaults.feature_images %}
+                    <div class="col-lg-4">
+                        <img src="{{ default.src }}" class="img-fluid rounded shadow feature-img" alt="{{ default.alt }}">
+                        <div class="mt-3">
+                            <strong>{{ default.title }}</strong>
+                            <p class="text-muted mb-0">{{ default.description }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div id="faq" class="work-panel animate-in">
+            <div class="panel-title mb-4">
+                <h2>Frequently Asked Questions</h2>
             </div>
 
-            <div class="faq-item">
-                <h3>How do I upload content?</h3>
-                <p>Authorized users can use the upload dashboard to add new media files. All files are securely stored in our dedicated storage system.</p>
-            </div>
+            <div class="activity-list">
+                <article class="activity-item">
+                    <strong>What is Fab Stream?</strong>
+                    <p>Fab Stream is our internal business platform for department communication, employee management, task assignment, and company reporting. It helps teams stay aligned by centralizing messages, updates, and work assignments in one place.</p>
+                </article>
 
-            <div class="faq-item">
-                <h3>What is the maximum file size allowed?</h3>
-                <p>To ensure optimal performance, the current upload limit is set to <span class="highlight">16 MB</span> per file.</p>
-            </div>
+                <article class="activity-item">
+                    <strong>How do I find my department and teammates?</strong>
+                    <p>Use the Departments page to see all active teams. Each department card shows department status, lead, summary, and a preview of employees. Click a department name to see all staff and manage team tasks if you have the right access.</p>
+                </article>
 
-            <div class="faq-item">
-                <h3>Is my data secure?</h3>
-                <p>Yes. The application uses encrypted session management and a secure SQLite database backend to protect user information and metadata.</p>
-            </div>
+                <article class="activity-item">
+                    <strong>What happens when I am assigned a task?</strong>
+                    <p>Tasks are assigned by managers and appear on your dashboard. You can view your open tasks, completed tasks, and task details from your employee profile or dashboard pages.</p>
+                </article>
 
-            <div class="faq-item">
-                <h3>Which formats are supported?</h3>
-                <p>We currently support standard video and audio formats. If you encounter an issue with a specific file type, please contact the administrator.</p>
-            </div>
-        </section>
-    </main>
+                <article class="activity-item">
+                    <strong>How do I use department chat?</strong>
+                    <p>Visit the Chat page and select your department from the dropdown. Messages are grouped by department so teams can discuss work, updates, and reporting in the right channel.</p>
+                </article>
 
-    <footer>
-        <p>&copy; {{ 2023 }} Fab Stream Platform</p>
-    </footer>
-</body>
-</html>
+                <article class="activity-item">
+                    <strong>Can I upload reports and documents?</strong>
+                    <p>Yes. Reports support PDF, Word, Excel, PowerPoint, text files, and common image formats like PNG and JPG. Upload files when creating or sharing reports through the Reports page.</p>
+                </article>
+
+                <article class="activity-item">
+                    <strong>Who can edit departments and employee records?</strong>
+                    <p>Only Admin and Manager roles can add, rename, or remove departments and manage employee details. Regular employees can view their own profile, tasks, and department information.</p>
+                </article>
+
+                <article class="activity-item">
+                    <strong>I’m new — where should I start?</strong>
+                    <p>First log in and open your dashboard. Check the Departments page to find your team, and use the Chat page to join department conversations. If you have a manager role, use the admin buttons to add departments, assign tasks, or update staff records.</p>
+                </article>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer class="py-4 mt-5 border-top">
+    <p class="text-center text-muted">&copy; 2024 Fab Stream Business Platform</p>
+</footer>
+{% endblock %}

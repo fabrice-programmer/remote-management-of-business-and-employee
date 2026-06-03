@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ action }} Task
+{% endblock %}
+
+{% block content %}
+
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Task Management</p>
+                <h1>{{ action }} Task</h1>
+            </div>
+            <a href="{{ url_for('routes.employee_detail', employee_id=task.employee_id) }}" class="btn btn-outline-primary">Go Back</a>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="work-panel">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label" for="title">Task Title *</label>
+                            <input class="form-control" id="title" name="title" value="{{ task.title or '' }}" placeholder="Task title" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="description">Task Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="5" placeholder="Detailed task description and instructions">{{ task.description or '' }}</textarea>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="priority">Priority</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="Low" {% if task and task.priority == 'Low' %}selected{% endif %}>Low</option>
+                                    <option value="Normal" {% if not task or task.priority == 'Normal' %}selected{% endif %}>Normal</option>
+                                    <option value="High" {% if task and task.priority == 'High' %}selected{% endif %}>High</option>
+                                    <option value="Urgent" {% if task and task.priority == 'Urgent' %}selected{% endif %}>Urgent</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="status">Status</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="To Do" {% if not task or task.status == 'To Do' %}selected{% endif %}>To Do</option>
+                                    <option value="In Progress" {% if task and task.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="Done" {% if task and task.status == 'Done' %}selected{% endif %}>Done</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="due_date">Due Date</label>
+                                <input class="form-control" id="due_date" name="due_date" type="date" value="{{ task.due_date or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" type="submit">{{ action }} Task</button>
+                            <a href="{{ url_for('routes.employee_detail', employee_id=task.employee_id) }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="work-panel">
+                    <h3>Task Information</h3>
+                    <p class="text-muted text-small">
+                        Manage task details. Update the priority, status, and due date to keep work organized and on track.
+                    </p>
+                    
+                    <hr>
+                    
+                    <h5>Assigned To:</h5>
+                    <p class="mb-2">
+                        <strong>{{ task.employee.full_name or task.employee.username }}</strong>
+                        <br>
+                        <small class="text-muted">{{ task.employee.email }}</small>
+                    </p>
+
+                    {% if task.assigned_by %}
+                        <h5>Assigned By:</h5>
+                        <p>
+                            <strong>{{ task.assigned_by.full_name or task.assigned_by.username }}</strong>
+                            <br>
+                            <small class="text-muted">{{ task.assigned_by.email }}</small>
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

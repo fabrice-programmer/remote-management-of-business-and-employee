@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ action }} Homepage Media
+{% endblock %}
+
+{% block content %}
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Homepage media</p>
+                <h1>{{ action }} Homepage Asset</h1>
+                <p>Upload an image or video for the homepage hero banner or feature cards.</p>
+            </div>
+            <a href="{{ url_for('routes.home_media') }}" class="btn btn-outline-primary">Back to Media List</a>
+        </div>
+
+        <div class="work-panel">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label" for="asset_type">Asset Type</label>
+                    <select class="form-select" id="asset_type" name="asset_type">
+                        <option value="hero" {% if asset and asset.asset_type == 'hero' %}selected{% endif %}>Hero Banner</option>
+                        <option value="feature" {% if asset and asset.asset_type == 'feature' %}selected{% endif %}>Feature Media</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="title">Title</label>
+                    <input class="form-control" id="title" name="title" value="{{ asset.title if asset else '' }}" placeholder="Optional title">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="description">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="3" placeholder="Optional description">{{ asset.description if asset else '' }}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="order">Order</label>
+                    <input class="form-control" id="order" name="order" type="number" value="{{ asset.order if asset else 0 }}" min="0">
+                    <div class="form-text">Use a lower number to display this asset earlier.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="media">Image or Video File</label>
+                    <input class="form-control" id="media" name="media" type="file" {% if not asset %}required{% endif %}>
+                    {% if asset and asset.original_filename %}
+                        <div class="form-text">Current file: {{ asset.original_filename }}</div>
+                    {% endif %}
+                </div>
+
+                <button class="btn btn-primary w-100" type="submit">{{ action }} Asset</button>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -59,6 +59,27 @@ def ensure_employee_task_attachment_columns():
                 connection.execute(text(f'ALTER TABLE employee_task ADD COLUMN {column_name} {column_type}'))
 
 
+def ensure_chat_message_attachment_columns():
+    if db.engine.dialect.name != 'sqlite':
+        return
+
+    inspector = inspect(db.engine)
+    if 'chat_message' not in inspector.get_table_names():
+        return
+
+    existing_columns = {column['name'] for column in inspector.get_columns('chat_message')}
+    attachment_columns = {
+        'original_filename': 'VARCHAR(255)',
+        'stored_filename': 'VARCHAR(255)',
+        'media_type': 'VARCHAR(20)'
+    }
+
+    with db.engine.begin() as connection:
+        for column_name, column_type in attachment_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(text(f'ALTER TABLE chat_message ADD COLUMN {column_name} {column_type}'))
+
+
 def ensure_direct_message_attachment_columns():
     if db.engine.dialect.name != 'sqlite':
         return
@@ -103,6 +124,7 @@ def create_app():
         db.create_all()
         ensure_user_profile_columns()
         ensure_employee_task_attachment_columns()
+        ensure_chat_message_attachment_columns()
         ensure_direct_message_attachment_columns()
 
     return app

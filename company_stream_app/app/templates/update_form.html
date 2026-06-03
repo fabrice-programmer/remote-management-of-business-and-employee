@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ action }} Update
+{% endblock %}
+
+{% block content %}
+
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Company Updates</p>
+                <h1>{{ action }} Announcement</h1>
+            </div>
+            <a href="{{ url_for('routes.manager_dashboard') }}" class="btn btn-outline-primary">Back to Dashboard</a>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="work-panel">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label" for="title">Title *</label>
+                            <input class="form-control" id="title" name="title" value="{{ update.title or '' }}" placeholder="Update title" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="body">Message *</label>
+                            <textarea class="form-control" id="body" name="body" rows="8" placeholder="Enter the full announcement text" required>{{ update.body or '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="department">Department/Audience</label>
+                            <select class="form-select" id="department" name="department">
+                                <option value="Company-wide" {% if not update or update.department == 'Company-wide' %}selected{% endif %}>Company-wide</option>
+                                {% for dept in department_list %}
+                                    <option value="{{ dept }}" {% if update and update.department == dept %}selected{% endif %}>{{ dept }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Choose who should see this announcement</small>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" type="submit">{{ action }} Announcement</button>
+                            <a href="{{ url_for('routes.manager_dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="work-panel">
+                    <h3>Guidelines</h3>
+                    <p class="text-muted text-small">
+                        Create important announcements to keep the team informed about company-wide or department-specific updates.
+                    </p>
+                    
+                    <hr>
+                    
+                    <h5>Best Practices:</h5>
+                    <ul class="text-small">
+                        <li>Use clear, concise titles</li>
+                        <li>Write in professional tone</li>
+                        <li>Include action items if needed</li>
+                        <li>Target the right audience</li>
+                        <li>Use company-wide for important info</li>
+                    </ul>
+
+                    {% if update %}
+                        <hr>
+                        <h5>Created By:</h5>
+                        <p>
+                            <strong>{{ update.author.full_name or update.author.username }}</strong>
+                            <br>
+                            <small class="text-muted">{{ update.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

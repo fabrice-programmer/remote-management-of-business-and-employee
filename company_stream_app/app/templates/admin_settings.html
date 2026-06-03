@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Admin Settings
+{% endblock %}
+
+{% block content %}
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Admin settings</p>
+                <h1>Homepage and Platform Settings</h1>
+                <p>Use these links to manage the home page media and other administrative settings.</p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="work-panel h-100">
+                    <h3>Homepage Media</h3>
+                    <p>Upload or edit hero images, featured cards, and videos that appear on the landing page.</p>
+                    <a href="{{ url_for('routes.home_media') }}" class="btn btn-primary">Manage Homepage Media</a>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="work-panel h-100">
+                    <h3>Department Controls</h3>
+                    <p>Manage departments, add new teams, and update department details from a central admin page.</p>
+                    <a href="{{ url_for('routes.departments') }}" class="btn btn-secondary">Manage Departments</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

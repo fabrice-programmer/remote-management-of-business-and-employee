@@ -14,7 +14,10 @@ Departments
                 <h1>Departments</h1>
                 <p>Keep each team’s updates, conversations, and reporting activity easy to find.</p>
             </div>
-            <a href="{{ url_for('routes.chat') }}" class="btn btn-primary">Open Chat</a>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('routes.create_department') }}" class="btn btn-success">+ New Department</a>
+                <a href="{{ url_for('routes.chat') }}" class="btn btn-primary">Open Chat</a>
+            </div>
         </div>
 
         <div class="department-grid">
@@ -44,6 +47,19 @@ Departments
                             <div class="employee-empty">No employees added yet.</div>
                         {% endfor %}
                     </div>
+                    {% if department.employees > 0 %}
+                        <a href="{{ url_for('routes.department_detail', department_name=department.name) }}" class="btn btn-info w-100 mb-2">
+                            View All {{ department.employees }} Employee{{ 's' if department.employees != 1 else '' }}
+                        </a>
+                    {% endif %}
+                    {% if department.id %}
+                        <div class="d-flex gap-2 mb-2">
+                            <a href="{{ url_for('routes.edit_department', dept_id=department.id) }}" class="btn btn-warning flex-fill">Edit</a>
+                            <form method="POST" action="{{ url_for('routes.delete_department', dept_id=department.id) }}" class="flex-fill">
+                                <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Delete this department and all related references?');">Delete</button>
+                            </form>
+                        </div>
+                    {% endif %}
                     <button class="btn btn-dark w-100 mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#add-employee-{{ loop.index }}" aria-expanded="false">
                         Add Employee
                     </button>
