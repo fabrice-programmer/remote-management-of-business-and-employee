@@ -28,7 +28,6 @@ class User(db.Model, UserMixin):
     department = db.Column(db.String(80), nullable=True)
     position = db.Column(db.String(100), nullable=True)
     hire_date = db.Column(db.String(20), nullable=True)
-    employee_code = db.Column(db.String(10), unique=True, nullable=True)
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -135,3 +134,23 @@ class EmployeeTask(db.Model):
 
     def __repr__(self):
         return f'<EmployeeTask {self.title}>'
+
+
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    message = db.Column(db.String(255), nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic'))
+
+
+class Attendance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    check_in = db.Column(db.DateTime, default=datetime.utcnow)
+    check_out = db.Column(db.DateTime, nullable=True)
+    date = db.Column(db.Date, default=lambda: datetime.utcnow().date())
+    
+    user = db.relationship('User', backref='attendance_records')

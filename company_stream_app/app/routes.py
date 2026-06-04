@@ -3,8 +3,9 @@ from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.utils import secure_filename
 from app import bcrypt, db
 from app.forms import LoginForm, RegisterForm
-from app.models import ChatMessage, CompanyUpdate, Department, DirectMessage, EmployeeTask, HomepageMedia, ReportDocument, User
+from app.models import Attendance, ChatMessage, CompanyUpdate, Department, DirectMessage, EmployeeTask, HomepageMedia, Notification, ReportDocument, User
 import os
+from datetime import datetime, date
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 
@@ -49,6 +50,11 @@ def store_uploaded_document(document):
     stored_filename = f'{uuid4().hex}.{extension}'
     document.save(os.path.join(current_app.config['UPLOAD_FOLDER'], stored_filename))
     return original_filename, stored_filename
+
+def create_notification(user_id, message):
+    notification = Notification(user_id=user_id, message=message)
+    db.session.add(notification)
+    db.session.commit()
 
 
 @routes.route('/uploads/<path:filename>')
@@ -218,17 +224,22 @@ def dashboard():
         )
         employees_count = 1
 
+    today = date.today()
+    attendance = Attendance.query.filter_by(user_id=current_user.id, date=today).first()
+    unread_notifications = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+
     stats = {
         'employees': employees_count,
         'reports': visible_reports.count(),
         'received': ReportDocument.query.filter_by(recipient_id=current_user.id).count(),
-        'departments': len(department_names())
+        'departments': len(department_names()),
+        'unread_notifications': unread_notifications
     }
     updates = CompanyUpdate.query.order_by(CompanyUpdate.created_at.desc()).limit(5).all()
     reports = visible_reports.order_by(ReportDocument.created_at.desc()).limit(5).all()
     messages = ChatMessage.query.order_by(ChatMessage.created_at.desc()).limit(4).all()
     direct_messages = DirectMessage.query.filter_by(recipient_id=current_user.id).order_by(DirectMessage.created_at.desc()).limit(5).all()
-    return render_template('dashboard.html', stats=stats, updates=updates, reports=reports, messages=messages, direct_messages=direct_messages, is_admin=is_admin())
+    return render_template('dashboard.html', stats=stats, updates=updates, reports=reports, messages=messages, direct_messages=direct_messages, is_admin=is_admin(), attendance=attendance)
 
 
 @routes.route('/manager-dashboard')
@@ -568,6 +579,7 @@ def assign_global_task():
             assigned_by_id=current_user.id
         )
         db.session.add(task)
+        create_notification(recipient.id, f"You have been assigned a new task: {title}")
 
     db.session.commit()
     flash(f'Task assigned to {len(recipients)} recipient(s).', 'success')
@@ -685,6 +697,7 @@ def send_employee_message(employee_id):
         recipient_id=employee.id
     )
     db.session.add(message)
+    create_notification(employee.id, f"New direct message from {current_user.username}")
     db.session.commit()
     flash(f'Message sent directly to {employee.full_name or employee.username}.', 'success')
     return redirect(url_for('routes.employee_detail', employee_id=employee.id))
@@ -1280,3 +1293,68 @@ def delete_direct_message(message_id):
     db.session.commit()
     flash('Direct message deleted successfully.', 'success')
     return redirect(request.referrer or url_for('routes.dashboard'))
+
+# =====================
+# ATTENDANCE & NOTIFICATIONS
+# =====================
+
+@routes.route('/attendance/check-in', methods=['POST'])
+@login_required
+def check_in():
+    today = date.today()
+    existing = Attendance.query.filter_by(user_id=current_user.id, date=today).first()
+    if not existing:
+        entry = Attendance(user_id=current_user.id)
+        db.session.add(entry)
+        db.session.commit()
+        flash('Checked in for today.', 'success')
+    return redirect(url_for('routes.dashboard'))
+
+@routes.route('/attendance/check-out', methods=['POST'])
+@login_required
+def check_out():
+    today = date.today()
+    entry = Attendance.query.filter_by(user_id=current_user.id, date=today).first()
+    if entry and not entry.check_out:
+        entry.check_out = datetime.utcnow()
+        db.session.commit()
+        flash('Checked out successfully.', 'info')
+    return redirect(url_for('routes.dashboard'))
+
+@routes.route('/notifications')
+@login_required
+def notifications():
+    user_notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).all()
+    # Mark all as read when viewing
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({Notification.is_read: True})
+    db.session.commit()
+    return render_template('notifications.html', notifications=user_notifications)
+
+# =====================
+# ANALYTICS
+# =====================
+
+@routes.route('/admin/analytics')
+@login_required
+def analytics():
+    require_admin()
+    
+    total_tasks = EmployeeTask.query.count()
+    completed_tasks = EmployeeTask.query.filter_by(status='Done').count()
+    completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+    
+    dept_counts = {}
+    for dept in department_names():
+        count = User.query.filter_by(department=dept).count()
+        dept_counts[dept] = count
+        
+    analytics_data = {
+        'task_stats': {
+            'total': total_tasks,
+            'completed': completed_tasks,
+            'rate': round(completion_rate, 1)
+        },
+        'department_distribution': dept_counts,
+        'total_reports': ReportDocument.query.count()
+    }
+    return render_template('analytics.html', data=analytics_data)
