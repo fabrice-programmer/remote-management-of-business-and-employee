@@ -6,7 +6,7 @@ from flask_socketio import SocketIO
 from flask_migrate import Migrate
 from config import Config
 import os
-from sqlalchemy import MetaData, inspect, text
+from sqlalchemy import MetaData
 
 naming_convention = {
     "ix": 'ix_%(column_0_label)s',
@@ -37,7 +37,13 @@ def create_app():
     socketio.init_app(app)
     migrate.init_app(app, db, render_as_batch=True)
 
-    from app.models import User
+    # Dev safeguard: if DB is missing new tables (e.g., Attendance), create them.
+    # This avoids runtime crashes like: "no such table: attendance".
+    with app.app_context():
+        # Importing User ensures all models in app.models are registered with SQLAlchemy
+        from app.models import User
+        # create_all is safe to run as it won't overwrite existing tables
+        db.create_all()
 
     @login_manager.user_loader
     def load_user(user_id):
