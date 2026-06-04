@@ -3,5 +3,6 @@ Flask-SQLAlchemy
 Flask-WTF
 Flask-Login
 Flask-Bcrypt
+Flask-Migrate
 Flask-SocketIO
 email-validator

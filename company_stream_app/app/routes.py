@@ -359,26 +359,6 @@ def departments():
         })
 
     return render_template('departments.html', departments=department_stats)
-    require_admin()
-    department_stats = []
-
-    for department in DEPARTMENTS:
-        employee_count = User.query.filter_by(department=department['name']).count()
-        employees = User.query.filter_by(department=department['name']).order_by(User.username.asc()).limit(4).all()
-        report_count = ReportDocument.query.filter(ReportDocument.message.ilike(f"%{department['name']}%")).count()
-        message_count = ChatMessage.query.filter_by(department=department['name']).count()
-        update_count = CompanyUpdate.query.filter_by(department=department['name']).count()
-        department_stats.append({
-            **department,
-            'employees': employee_count,
-            'employee_preview': employees,
-            'reports': report_count,
-            'messages': message_count,
-            'updates': update_count
-        })
-
-    return render_template('departments.html', departments=department_stats)
-
 
 @routes.route('/departments/<department_name>')
 @login_required
