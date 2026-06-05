@@ -24,6 +24,7 @@ class User(db.Model, UserMixin):
     role = db.Column(db.String(20), default='employee')
     full_name = db.Column(db.String(120), nullable=True)
     employee_number = db.Column(db.String(40), unique=True, nullable=True)
+    employee_code = db.Column(db.String(10), nullable=True)
     phone = db.Column(db.String(40), nullable=True)
     department = db.Column(db.String(80), nullable=True)
     position = db.Column(db.String(100), nullable=True)

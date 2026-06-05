@@ -154,14 +154,22 @@ def login():
         user = User.query.filter_by(email=form.email.data.lower()).first()
 
         if user and bcrypt.check_password_hash(user.password, form.password.data):
-            login_user(user)
-            flash('You are logged in.', 'success')
-            next_page = request.args.get('next')
-            if is_safe_redirect(next_page):
-                return redirect(next_page)
-            return redirect(url_for('routes.dashboard'))
-
-        flash('Invalid email or password.', 'danger')
+            provided_code = form.employee_code.data.strip() if form.employee_code.data else ""
+            
+            # Verify against the user's specific code OR the global company secret
+            company_secret = current_app.config.get('COMPANY_ACCESS_CODE', 'fab1')
+            
+            if provided_code == company_secret or provided_code == user.employee_code:
+                login_user(user)
+                flash('You are logged in.', 'success')
+                next_page = request.args.get('next')
+                if is_safe_redirect(next_page):
+                    return redirect(next_page)
+                return redirect(url_for('routes.dashboard'))
+            else:
+                flash('Invalid access code.', 'danger')
+        else:
+            flash('Invalid email or password.', 'danger')
 
     return render_template('login.html', form=form)
 
@@ -174,6 +182,11 @@ def register():
     form = RegisterForm()
 
     if form.validate_on_submit():
+        # Security check: verify the company access code
+        if form.employee_code.data.strip() != current_app.config.get('COMPANY_ACCESS_CODE', 'fab1'):
+            flash('Invalid company access code. Please contact your administrator.', 'danger')
+            return render_template('register.html', form=form)
+
         username_exists = User.query.filter_by(username=form.username.data).first()
         email_exists = User.query.filter_by(email=form.email.data.lower()).first()
 
@@ -189,7 +202,8 @@ def register():
         user = User(
             username=form.username.data,
             email=form.email.data.lower(),
-            password=hashed_password
+            password=hashed_password,
+            employee_code=form.employee_code.data.strip()
         )
 
         db.session.add(user)
@@ -420,6 +434,7 @@ def add_department_employee():
     username = request.form.get('username', '').strip()
     email = request.form.get('email', '').strip().lower()
     employee_number = request.form.get('employee_number', '').strip()
+    employee_code = request.form.get('employee_code', '').strip() or current_app.config.get('COMPANY_ACCESS_CODE', 'fab1')
     phone = request.form.get('phone', '').strip()
     department = request.form.get('department', '').strip()
     position = request.form.get('position', '').strip()
@@ -431,6 +446,7 @@ def add_department_employee():
         'username': username,
         'email': email,
         'employee number': employee_number,
+        'employee code': employee_code,
         'department': department,
         'position': position,
         'password': password
@@ -466,6 +482,7 @@ def add_department_employee():
         username=username,
         email=email,
         employee_number=employee_number,
+        employee_code=employee_code,
         phone=phone,
         department=department,
         position=position,
@@ -1060,6 +1077,7 @@ def edit_employee(employee_id):
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
         email = request.form.get('email', '').strip().lower()
+        employee_code = request.form.get('employee_code', '').strip()
         phone = request.form.get('phone', '').strip()
         department = request.form.get('department', '').strip()
         position = request.form.get('position', '').strip()
@@ -1081,6 +1099,7 @@ def edit_employee(employee_id):
 
         employee.full_name = full_name
         employee.email = email
+        employee.employee_code = employee_code
         employee.phone = phone
         employee.department = department
         employee.position = position

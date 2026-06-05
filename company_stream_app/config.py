@@ -3,4 +3,5 @@ class Config:
     SQLALCHEMY_DATABASE_URI = 'sqlite:///company.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = 'uploads'
+    COMPANY_ACCESS_CODE = 'fab1'
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024

@@ -7,9 +7,11 @@ class RegisterForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
+    employee_code = StringField('Company Access Code', validators=[DataRequired()])
     submit = SubmitField('Register')
 
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired()])
+    employee_code = StringField('Access Code', validators=[DataRequired()])
     submit = SubmitField('Login')
