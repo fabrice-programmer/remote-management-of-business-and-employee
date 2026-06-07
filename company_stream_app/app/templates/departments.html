@@ -1,49 +1,603 @@
-<!-- This is the section within your departments.html where you add an employee -->
-<!-- Usually found within a Modal or a side panel -->
+{% extends 'base.html' %}
 
-<form action="{{ url_for('routes.add_department_employee') }}" method="POST">
-    <div class="row g-3">
-        <div class="col-md-6">
-            <label class="form-label">Full Name</label>
-            <input type="text" name="full_name" class="form-control" required>
+{% block title %}Departments – Fab Stream{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/departments.css') }}">
+
+<section class="app-page">
+    <div class="container">
+
+        <!-- ============================================================
+             PAGE HEADER
+        ============================================================ -->
+        <div class="dept-page-header">
+            <p class="section-kicker">Organization Management</p>
+            <h1>Departments</h1>
+            <p class="dept-subtitle">
+                Manage your company departments, assign managers, track team performance,
+                and add new employees — all from one place.
+            </p>
+            <div class="dept-header-actions">
+                <button type="button" class="btn btn-dept-primary" data-bs-toggle="modal" data-bs-target="#createDeptModal">
+                    <i class="bi bi-plus-lg"></i> New Department
+                </button>
+                <button type="button" class="btn btn-dept-outline" data-bs-toggle="modal" data-bs-target="#addEmployeeModal">
+                    <i class="bi bi-person-plus"></i> Add Employee
+                </button>
+            </div>
         </div>
-        <div class="col-md-6">
-            <label class="form-label">Username</label>
-            <input type="text" name="username" class="form-control" required>
+
+        <!-- ============================================================
+             STATS BAR
+        ============================================================ -->
+        <div class="dept-stats-bar">
+            <div class="dept-stat-item">
+                <div class="stat-icon">&#9776;</div>
+                <span class="stat-value" data-count="{{ departments|length }}">0</span>
+                <span class="stat-label">Total Departments</span>
+            </div>
+            <div class="dept-stat-item">
+                <div class="stat-icon">&#9679;&#9679;</div>
+                <span class="stat-value" data-count="{{ departments|selectattr('employees', 'gt', 0)|list|length }}">0</span>
+                <span class="stat-label">Active Departments</span>
+            </div>
+            <div class="dept-stat-item">
+                <div class="stat-icon">&#9783;</div>
+                <span class="stat-value" data-count="{{ departments|sum(attribute='employees') }}">0</span>
+                <span class="stat-label">Total Employees</span>
+            </div>
+            <div class="dept-stat-item">
+                <div class="stat-icon">&#9881;</div>
+                <span class="stat-value" data-count="{{ departments|sum(attribute='reports') }}">0</span>
+                <span class="stat-label">Total Reports</span>
+            </div>
         </div>
-        <div class="col-md-6">
-            <label class="form-label">Email Address</label>
-            <input type="email" name="email" class="form-control" required>
+
+        <!-- ============================================================
+             DEPARTMENTS GRID
+        ============================================================ -->
+        {% if departments %}
+        <div class="dept-grid">
+            {% for dept in departments %}
+            <div class="dept-card animate-in">
+                <div class="dept-card-top">
+                    <!-- Card Header -->
+                    <div class="dept-card-header">
+                        <h3>{{ dept.name }}</h3>
+                        {% if dept.status %}
+                        <span class="dept-status-badge dept-status-{{ dept.status|lower }}">
+                            {{ dept.status }}
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Summary -->
+                    <p class="dept-card-summary">
+                        {{ dept.summary or 'No description provided for this department.' }}
+                    </p>
+
+                    <!-- Manager Info -->
+                    <div class="dept-manager-info">
+                        {% if dept.manager %}
+                        <div class="dept-manager-avatar">
+                            {{ (dept.manager.full_name or dept.manager.username)[:1].upper() }}
+                        </div>
+                        <div class="manager-details">
+                            <span class="manager-label">Department Lead</span>
+                            <span class="manager-name">{{ dept.manager.full_name or dept.manager.username }}</span>
+                        </div>
+                        {% else %}
+                        <div class="dept-no-manager">No manager assigned</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Employee Preview -->
+                    <div class="dept-employees-preview">
+                        <div class="dept-employee-avatars">
+                            {% if dept.employee_preview %}
+                                {% for emp in dept.employee_preview[:4] %}
+                                <div class="dept-emp-avatar avatar-{{ loop.index }}" title="{{ emp.full_name or emp.username }}">
+                                    {{ (emp.full_name or emp.username)[:1].upper() }}
+                                </div>
+                                {% endfor %}
+                                {% if dept.employees > 4 %}
+                                <div class="dept-emp-avatar avatar-more">+{{ dept.employees - 4 }}</div>
+                                {% endif %}
+                            {% else %}
+                                <div class="dept-emp-count">No employees yet</div>
+                            {% endif %}
+                        </div>
+                        <div class="dept-emp-count">
+                            <strong>{{ dept.employees }}</strong> employee{{ 's' if dept.employees != 1 else '' }}
+                        </div>
+                    </div>
+
+                    <!-- Metrics -->
+                    <div class="dept-metrics">
+                        <div class="dept-metric">
+                            <span class="metric-num">{{ dept.reports }}</span>
+                            <span class="metric-desc">Reports</span>
+                        </div>
+                        <div class="dept-metric">
+                            <span class="metric-num">{{ dept.messages }}</span>
+                            <span class="metric-desc">Messages</span>
+                        </div>
+                        <div class="dept-metric">
+                            <span class="metric-num">{{ dept.updates }}</span>
+                            <span class="metric-desc">Updates</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card Actions -->
+                <div class="dept-card-actions">
+                    <a href="{{ url_for('routes.department_detail', department_name=dept.name) }}" class="btn btn-primary">
+                        <i class="bi bi-eye"></i> View Details
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary btn-edit-dept"
+                        data-dept-id="{{ dept.id }}"
+                        data-dept-name="{{ dept.name }}"
+                        data-dept-summary="{{ dept.summary or '' }}"
+                        data-dept-status="{{ dept.status or 'Active' }}"
+                        data-dept-manager="{{ dept.manager.id if dept.manager else '' }}">
+                        <i class="bi bi-pencil"></i> Edit
+                    </button>
+                    <button type="button" class="btn btn-danger-outline btn-delete-dept"
+                        data-dept-id="{{ dept.id }}"
+                        data-dept-name="{{ dept.name }}">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
         </div>
-        <div class="col-md-6">
-            <label class="form-label">Employee Number</label>
-            <input type="text" name="employee_number" class="form-control" required>
-        </div>
-        <div class="col-md-6">
-            <label class="form-label text-primary fw-bold">Secret Access Code</label>
-            <input type="text" name="employee_code" class="form-control border-primary" placeholder="e.g. SECURE123" required>
-            <small class="text-muted">The employee must use this code to log in.</small>
-        </div>
-        <div class="col-md-6">
-            <label class="form-label">Initial Password</label>
-            <input type="password" name="password" class="form-control" required>
-        </div>
-        <div class="col-md-6">
-            <label class="form-label">Department</label>
-            <select name="department" class="form-select">
-                {% for dept in department_list %}
-                <option value="{{ dept }}">{{ dept }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-6">
-            <label class="form-label">Position</label>
-            <input type="text" name="position" class="form-control" required>
-        </div>
-        <div class="col-12 mt-4">
-            <button type="submit" class="btn btn-success w-100">
-                <i class="bi bi-person-plus"></i> Register Employee Account
+        {% else %}
+        <!-- Empty State -->
+        <div class="dept-empty-state">
+            <div class="empty-icon">&#9776;</div>
+            <h3>No Departments Yet</h3>
+            <p>Get started by creating your first department. You'll be able to assign managers, add employees, and track activity.</p>
+            <button type="button" class="btn btn-dept-primary" data-bs-toggle="modal" data-bs-target="#createDeptModal">
+                <i class="bi bi-plus-lg"></i> Create Department
             </button>
         </div>
+        {% endif %}
+
+        <!-- ============================================================
+             ADD EMPLOYEE FORM (for admin)
+        ============================================================ -->
+        {% if department_list %}
+        <div class="dept-manual-form-section">
+            <h2>Register New Employee Account</h2>
+            <p>Create a new employee account and assign them to a department. The employee will use their secret access code to log in.</p>
+
+            <form action="{{ url_for('routes.add_department_employee') }}" method="POST">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" name="full_name" class="form-control" placeholder="e.g. Jane Mokoena" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username" class="form-control" placeholder="e.g. jane.mokoena" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" name="email" class="form-control" placeholder="jane@company.com" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Employee Number</label>
+                        <input type="text" name="employee_number" class="form-control" placeholder="e.g. EMP-0042" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Secret Access Code</label>
+                        <input type="text" name="employee_code" class="form-control" placeholder="e.g. SECURE123" required>
+                        <small class="form-text">The employee must use this code to log in.</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Initial Password</label>
+                        <input type="password" name="password" class="form-control" placeholder="Min. 6 characters" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Phone (optional)</label>
+                        <input type="text" name="phone" class="form-control" placeholder="e.g. +27 82 123 4567">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Department</label>
+                        <select name="department" class="form-select" required>
+                            <option value="">Select department...</option>
+                            {% for dept in department_list %}
+                            <option value="{{ dept }}">{{ dept }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Position</label>
+                        <input type="text" name="position" class="form-control" placeholder="e.g. Software Engineer" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Hire Date (optional)</label>
+                        <input type="date" name="hire_date" class="form-control">
+                    </div>
+                    <div class="col-12 mt-4">
+                        <button type="submit" class="btn btn-dept-primary btn-lg w-100">
+                            <i class="bi bi-person-plus"></i> Register Employee Account
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
     </div>
-</form>
+</section>
+
+<!-- ============================================================
+     CREATE DEPARTMENT MODAL
+============================================================ -->
+<div class="modal fade dept-modal" id="createDeptModal" tabindex="-1" aria-labelledby="createDeptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="{{ url_for('routes.create_department') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createDeptModalLabel">Create New Department</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Department Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Engineering" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Department Lead</label>
+                        <select name="manager_id" class="form-select">
+                            <option value="">Unassigned</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.full_name or user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="Active">Active</option>
+                            <option value="Reviewing">Reviewing</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Summary</label>
+                        <textarea name="summary" class="form-control" rows="3" placeholder="Brief description of this department's role and responsibilities..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dept-primary">Create Department</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     EDIT DEPARTMENT MODAL (dynamically filled by JS)
+============================================================ -->
+<div class="modal fade dept-modal" id="editDeptModal" tabindex="-1" aria-labelledby="editDeptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="editDeptForm" method="POST" action="">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editDeptModalLabel">Edit Department</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Department Name</label>
+                        <input type="text" name="name" id="editDeptName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Department Lead</label>
+                        <select name="manager_id" id="editDeptManager" class="form-select">
+                            <option value="">Unassigned</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.full_name or user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" id="editDeptStatus" class="form-select">
+                            <option value="Active">Active</option>
+                            <option value="Reviewing">Reviewing</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Summary</label>
+                        <textarea name="summary" id="editDeptSummary" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dept-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     ADD EMPLOYEE MODAL
+============================================================ -->
+<div class="modal fade dept-modal" id="addEmployeeModal" tabindex="-1" aria-labelledby="addEmployeeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('routes.add_department_employee') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addEmployeeModalLabel">Add New Employee</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" name="full_name" class="form-control" placeholder="e.g. Jane Mokoena" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Username</label>
+                            <input type="text" name="username" class="form-control" placeholder="e.g. jane.mokoena" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" name="email" class="form-control" placeholder="jane@company.com" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Employee Number</label>
+                            <input type="text" name="employee_number" class="form-control" placeholder="e.g. EMP-0042" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Secret Access Code</label>
+                            <input type="text" name="employee_code" class="form-control" placeholder="e.g. SECURE123" required>
+                            <small class="form-text">The employee uses this code to log in.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Initial Password</label>
+                            <input type="password" name="password" class="form-control" placeholder="Min. 6 characters" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone (optional)</label>
+                            <input type="text" name="phone" class="form-control" placeholder="e.g. +27 82 123 4567">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Department</label>
+                            <select name="department" class="form-select" required>
+                                <option value="">Select department...</option>
+                                {% for dept in department_list %}
+                                <option value="{{ dept }}">{{ dept }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Position</label>
+                            <input type="text" name="position" class="form-control" placeholder="e.g. Software Engineer" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Hire Date (optional)</label>
+                            <input type="date" name="hire_date" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dept-primary">
+                        <i class="bi bi-person-plus"></i> Register Employee
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     DELETE CONFIRMATION (rendered by JavaScript)
+============================================================ -->
+
+<!-- ============================================================
+     TOAST CONTAINER
+============================================================ -->
+<div class="dept-toast-container" id="deptToastContainer"></div>
+
+<script>
+// ============================================================
+// DEPARTMENTS PAGE – Professional JavaScript Interactions
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    // ── Animate counters on scroll ──────────────────────────
+    const counters = document.querySelectorAll('[data-count]');
+    if (counters.length) {
+        const counterObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    animateCounter(entry.target);
+                    counterObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.35 });
+
+        counters.forEach((c) => counterObserver.observe(c));
+    }
+
+    function animateCounter(el) {
+        const target = Number(el.dataset.count);
+        const duration = 1200;
+        const start = performance.now();
+
+        function tick(now) {
+            const progress = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = Math.round(target * eased);
+            if (progress < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    }
+
+    // ── Scroll-reveal for department cards ─────────────────
+    const cards = document.querySelectorAll('.dept-card.animate-in');
+    if (cards.length) {
+        const cardObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    cardObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.08 });
+
+        cards.forEach((card, index) => {
+            card.style.transitionDelay = `${index * 0.06}s`;
+            cardObserver.observe(card);
+        });
+    }
+});
+
+
+// ============================================================
+// EVENT DELEGATION — Edit & Delete buttons
+// ============================================================
+document.addEventListener('click', function (e) {
+
+    // ── Edit Department ────────────────────────────────────
+    const editBtn = e.target.closest('.btn-edit-dept');
+    if (editBtn) {
+        const deptId = editBtn.dataset.deptId;
+        const name = editBtn.dataset.deptName;
+        const summary = editBtn.dataset.deptSummary;
+        const status = editBtn.dataset.deptStatus;
+        const managerId = editBtn.dataset.deptManager;
+
+        const form = document.getElementById('editDeptForm');
+        form.action = `/admin/departments/${deptId}/edit`;
+
+        document.getElementById('editDeptName').value = name;
+        document.getElementById('editDeptSummary').value = summary;
+
+        const statusSelect = document.getElementById('editDeptStatus');
+        for (let opt of statusSelect.options) {
+            opt.selected = (opt.value.toLowerCase() === status.toLowerCase());
+        }
+
+        const managerSelect = document.getElementById('editDeptManager');
+        let found = false;
+        for (let opt of managerSelect.options) {
+            if (opt.value === managerId) {
+                opt.selected = true;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            managerSelect.value = '';
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('editDeptModal'));
+        modal.show();
+        return;
+    }
+
+    // ── Delete Department ─────────────────────────────────
+    const delBtn = e.target.closest('.btn-delete-dept');
+    if (delBtn) {
+        const deptId = delBtn.dataset.deptId;
+        const deptName = delBtn.dataset.deptName;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'dept-confirm-overlay';
+        overlay.innerHTML = `
+            <div class="dept-confirm-box">
+                <div style="font-size: 2.5rem; margin-bottom: 12px;">&#9888;</div>
+                <h4>Delete Department?</h4>
+                <p>Are you sure you want to delete <strong>${deptName}</strong>? This action cannot be undone. Employees must be moved to another department first.</p>
+                <div class="confirm-actions">
+                    <button class="btn btn-outline-secondary cancel-delete-btn">Cancel</button>
+                    <form method="POST" action="/admin/departments/${deptId}/delete" style="display:inline;">
+                        <button type="submit" class="btn btn-danger" style="background:#dc2626;border:none;color:#fff;font-weight:700;border-radius:8px;padding:10px 20px;">
+                            <i class="bi bi-trash"></i> Delete Department
+                        </button>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        overlay.querySelector('.cancel-delete-btn').addEventListener('click', () => {
+            overlay.remove();
+        });
+
+        overlay.addEventListener('click', (ev) => {
+            if (ev.target === overlay) overlay.remove();
+        });
+        return;
+    }
+});
+
+
+// ============================================================
+// TOAST NOTIFICATIONS
+// ============================================================
+function showDeptToast(message, type) {
+    type = type || 'success';
+    const container = document.getElementById('deptToastContainer');
+    if (!container) return;
+
+    const icons = {
+        success: '&#10003;',
+        error: '&#10007;',
+        info: '&#8505;'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `dept-toast toast-${type}`;
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || icons.info}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+    `;
+
+    container.appendChild(toast);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.style.animation = 'fadeOut 0.3s ease forwards';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 5000);
+}
+
+// Show flash messages as toast if present
+(function() {
+    const flashContainer = document.querySelector('.flash-area');
+    if (flashContainer) {
+        const alerts = flashContainer.querySelectorAll('.alert');
+        alerts.forEach((alert) => {
+            const msg = alert.querySelector('.alert-content')?.textContent || alert.textContent.trim();
+            const isSuccess = alert.classList.contains('alert-success');
+            const isDanger = alert.classList.contains('alert-danger');
+            const isInfo = alert.classList.contains('alert-info');
+            let type = 'info';
+            if (isSuccess) type = 'success';
+            else if (isDanger) type = 'error';
+            else if (isInfo) type = 'info';
+            showDeptToast(msg, type);
+        });
+        flashContainer.style.display = 'none';
+    }
+})();
+
+</script>
+
+{% endblock %}

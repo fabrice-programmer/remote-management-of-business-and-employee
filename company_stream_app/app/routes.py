@@ -1,16 +1,16 @@
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_from_directory, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, send_from_directory, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.utils import secure_filename
 from . import bcrypt, db
 from .forms import LoginForm, RegisterForm
-from .models import Attendance, ChatMessage, CompanyUpdate, Department, DirectMessage, EmployeeTask, HomepageMedia, Notification, ReportDocument, User
+from .models import Attendance, ChatMessage, CompanyUpdate, DailyStat, Department, DirectMessage, EmployeeTask, HomepageMedia, Notification, ReportDocument, User
 import os
 from datetime import datetime, date
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 
 routes = Blueprint('routes', __name__)
-ALLOWED_DOCUMENT_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'png', 'jpg', 'jpeg', 'mp4', 'mov', 'webm', 'avi'}
+ALLOWED_DOCUMENT_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov', 'webm', 'avi'}
 ADMIN_ROLES = {'admin', 'manager'}
 def allowed_document(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_DOCUMENT_EXTENSIONS
@@ -107,6 +107,109 @@ def home():
         feature_media=feature_media,
         homepage_defaults=defaults
     )
+
+
+# =====================
+# Homepage Media Management
+# =====================
+@routes.route('/home-media')
+@login_required
+def home_media():
+    require_admin()
+    assets = HomepageMedia.query.order_by(HomepageMedia.asset_type, HomepageMedia.order).all()
+    return render_template('home_media_list.html', assets=assets)
+
+
+@routes.route('/home-media/create', methods=['GET', 'POST'])
+@login_required
+def create_home_media():
+    require_admin()
+    if request.method == 'POST':
+        asset_type = request.form.get('asset_type', 'feature').strip()
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        order = request.form.get('order', 0, type=int)
+        media = request.files.get('media')
+
+        if not media or media.filename == '':
+            flash('Please select an image or video file to upload.', 'danger')
+            return render_template('home_media_form.html', asset=None, action='Create')
+
+        if not allowed_document(media.filename):
+            flash('Unsupported file type. Please upload an image or video.', 'danger')
+            return render_template('home_media_form.html', asset=None, action='Create')
+
+        original_filename, stored_filename = store_uploaded_document(media)
+        extension = original_filename.rsplit('.', 1)[1].lower()
+        media_type = 'video' if extension in {'mp4', 'mov', 'webm', 'avi'} else 'image'
+
+        asset = HomepageMedia(
+            asset_type=asset_type,
+            title=title,
+            description=description,
+            media_type=media_type,
+            original_filename=original_filename,
+            stored_filename=stored_filename,
+            order=order
+        )
+        db.session.add(asset)
+        db.session.commit()
+        flash('Homepage media asset created successfully.', 'success')
+        return redirect(url_for('routes.home_media'))
+
+    return render_template('home_media_form.html', asset=None, action='Create')
+
+
+@routes.route('/home-media/<int:asset_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_home_media(asset_id):
+    require_admin()
+    asset = HomepageMedia.query.get_or_404(asset_id)
+
+    if request.method == 'POST':
+        asset.asset_type = request.form.get('asset_type', 'feature').strip()
+        asset.title = request.form.get('title', '').strip()
+        asset.description = request.form.get('description', '').strip()
+        asset.order = request.form.get('order', 0, type=int)
+
+        media = request.files.get('media')
+        if media and media.filename:
+            if not allowed_document(media.filename):
+                flash('Unsupported file type. Please upload an image or video.', 'danger')
+                return render_template('home_media_form.html', asset=asset, action='Edit')
+
+            original_filename, stored_filename = store_uploaded_document(media)
+            extension = original_filename.rsplit('.', 1)[1].lower()
+            asset.media_type = 'video' if extension in {'mp4', 'mov', 'webm', 'avi'} else 'image'
+            asset.original_filename = original_filename
+            asset.stored_filename = stored_filename
+
+        db.session.commit()
+        flash('Homepage media asset updated successfully.', 'success')
+        return redirect(url_for('routes.home_media'))
+
+    return render_template('home_media_form.html', asset=asset, action='Edit')
+
+
+@routes.route('/home-media/<int:asset_id>/delete', methods=['POST'])
+@login_required
+def delete_home_media(asset_id):
+    require_admin()
+    asset = HomepageMedia.query.get_or_404(asset_id)
+
+    # Delete the file from disk
+    if asset.stored_filename:
+        try:
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], asset.stored_filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print(f"Error deleting homepage media file: {e}")
+
+    db.session.delete(asset)
+    db.session.commit()
+    flash('Homepage media asset deleted successfully.', 'success')
+    return redirect(url_for('routes.home_media'))
 
 
 # =====================
@@ -242,7 +345,8 @@ def dashboard():
         # Silently fail for missing tables in dev; allows dashboard to load
         pass
 
-    return render_template('dashboard.html', stats=stats, updates=updates, reports=reports, messages=messages, direct_messages=direct_messages, is_admin=is_admin(), attendance=attendance)
+    now_date = date.today()
+    return render_template('dashboard.html', stats=stats, updates=updates, reports=reports, messages=messages, direct_messages=direct_messages, is_admin=is_admin(), attendance=attendance, now_date=now_date)
 
 
 @routes.route('/manager-dashboard')
@@ -359,7 +463,7 @@ def departments():
             'updates': update_count
         })
 
-    return render_template('departments.html', departments=department_stats)
+    return render_template('departments.html', departments=department_stats, department_list=department_names(), users=User.query.order_by(User.username.asc()).all())
 
 @routes.route('/departments/<department_name>')
 @login_required
@@ -540,22 +644,22 @@ def assign_global_task():
         recipients = User.query.filter_by(department=dept_name).all()
         if not recipients:
             flash(f'No employees found in the {dept_name} department.', 'warning')
-            return redirect(request.referrer)
+            return redirect(request.referrer or url_for('routes.dashboard'))
     else:
         user_id = request.form.get('target_user_id', type=int)
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id) if user_id else None
         if user:
             recipients = [user]
 
     if not recipients:
         flash('Please select a valid recipient or department.', 'danger')
-        return redirect(request.referrer)
+        return redirect(request.referrer or url_for('routes.dashboard'))
 
     # File Handling
     if document and document.filename:
         if not allowed_document(document.filename):
             flash('This work file type is not allowed.', 'danger')
-            return redirect(request.referrer)
+            return redirect(request.referrer or url_for('routes.dashboard'))
         original_filename, stored_filename = store_uploaded_document(document)
 
     for recipient in recipients:
@@ -574,7 +678,7 @@ def assign_global_task():
 
     db.session.commit()
     flash(f'Task assigned to {len(recipients)} recipient(s).', 'success')
-    return redirect(request.referrer)
+    return redirect(request.referrer or url_for('routes.dashboard'))
 
 
 @routes.route('/employees/<int:employee_id>/tasks/<int:task_id>/report', methods=['POST'])
@@ -863,6 +967,101 @@ def check_out():
         flash('Checked out successfully.', 'info')
     return redirect(url_for('routes.dashboard'))
 
+@routes.route('/admin/attendance')
+@login_required
+def attendance_records():
+    """Admin view of all attendance records with filtering."""
+    require_admin()
+    
+    # Parse filters
+    selected_date_str = request.args.get('date', '')
+    selected_status = request.args.get('status', '')
+    
+    try:
+        selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date() if selected_date_str else date.today()
+    except (ValueError, TypeError):
+        selected_date = date.today()
+    
+    selected_date_str = selected_date.isoformat()
+    
+    # Query attendance records for the selected date
+    query = Attendance.query.filter(Attendance.date == selected_date)
+    if selected_status and selected_status != 'absent':
+        query = query.filter(Attendance.status == selected_status)
+    
+    attendance_entries = query.order_by(Attendance.check_in.asc()).all()
+    
+    # Build record list
+    records = []
+    present_user_ids = set()
+    for entry in attendance_entries:
+        present_user_ids.add(entry.user_id)
+        records.append({
+            'username': entry.user.username,
+            'full_name': entry.user.full_name or entry.user.username,
+            'department': entry.user.department,
+            'position': entry.user.position,
+            'check_in': entry.check_in.strftime('%H:%M') if entry.check_in else '--',
+            'check_out': entry.check_out.strftime('%H:%M') if entry.check_out else '--',
+            'status': entry.status
+        })
+    
+    # Count stats
+    total_employees = User.query.count()
+    present_count = Attendance.query.filter(
+        Attendance.date == selected_date,
+        Attendance.status.in_(['present', 'late', 'half-day'])
+    ).count()
+    late_count = Attendance.query.filter(Attendance.date == selected_date, Attendance.status == 'late').count()
+    absent_count = total_employees - present_count
+    
+    # If filtering by absent status, show only absent employees
+    if selected_status == 'absent':
+        present_user_ids_for_absent = set()
+        all_entries = Attendance.query.filter(Attendance.date == selected_date).all()
+        for entry in all_entries:
+            present_user_ids_for_absent.add(entry.user_id)
+        absent_employees = User.query.filter(~User.id.in_(present_user_ids_for_absent)).order_by(User.department.asc(), User.username.asc()).all()
+        records = []
+        for emp in absent_employees:
+            records.append({
+                'username': emp.username,
+                'full_name': emp.full_name or emp.username,
+                'department': emp.department,
+                'position': emp.position,
+                'check_in': '--',
+                'check_out': '--',
+                'status': 'absent'
+            })
+    else:
+        # Find absent employees
+        absent_employees = User.query.filter(~User.id.in_(present_user_ids)).order_by(User.department.asc(), User.username.asc()).all()
+    
+    absent_list = []
+    for emp in absent_employees:
+        absent_list.append({
+            'username': emp.username,
+            'full_name': emp.full_name or emp.username,
+            'department': emp.department,
+            'position': emp.position
+        })
+    
+    stats = {
+        'total': total_employees,
+        'present': present_count,
+        'late': late_count,
+        'absent': absent_count
+    }
+    
+    return render_template(
+        'attendance_records.html',
+        records=records,
+        absent_employees=absent_list,
+        stats=stats,
+        selected_date=selected_date_str,
+        selected_status=selected_status
+    )
+
 @routes.route('/notifications')
 @login_required
 def notifications():
@@ -900,3 +1099,320 @@ def analytics():
         'total_reports': ReportDocument.query.count()
     }
     return render_template('analytics.html', data=analytics_data)
+
+
+# =====================
+# DASHBOARD STATISTICS API
+# =====================
+
+@routes.route('/api/dashboard/stats')
+@login_required
+def api_dashboard_stats():
+    """JSON endpoint for dashboard statistics data."""
+    today = date.today()
+    total_employees = User.query.count()
+    
+    # Attendance for today
+    present_today = Attendance.query.filter(
+        Attendance.date == today,
+        Attendance.status.in_(['present', 'late', 'half-day'])
+    ).count()
+    late_today = Attendance.query.filter(Attendance.date == today, Attendance.status == 'late').count()
+    absent_today = total_employees - present_today
+    
+    # Tasks overview
+    total_tasks = EmployeeTask.query.count()
+    todo_tasks = EmployeeTask.query.filter_by(status='To Do').count()
+    in_progress_tasks = EmployeeTask.query.filter_by(status='In Progress').count()
+    done_tasks = EmployeeTask.query.filter_by(status='Done').count()
+    
+    # Reports count
+    total_reports = ReportDocument.query.count()
+    
+    # Chat & Messages
+    chat_count = ChatMessage.query.count()
+    
+    # Department distribution
+    dept_data = []
+    for dept_name in department_names():
+        emp_count = User.query.filter_by(department=dept_name).count()
+        dept_data.append({
+            'name': dept_name,
+            'employees': emp_count
+        })
+    
+    # Recent activity (combined log)
+    recent_activity = []
+    
+    # Recent reports
+    recent_reports = ReportDocument.query.order_by(ReportDocument.created_at.desc()).limit(5).all()
+    for r in recent_reports:
+        recent_activity.append({
+            'type': 'report',
+            'title': r.title,
+            'description': f"Report by {r.sender.username if r.sender else 'System'} → {r.recipient.username}",
+            'time': r.created_at.isoformat(),
+            'date_str': r.created_at.strftime('%Y-%m-%d %H:%M')
+        })
+    
+    # Recent updates
+    recent_updates = CompanyUpdate.query.order_by(CompanyUpdate.created_at.desc()).limit(5).all()
+    for u in recent_updates:
+        recent_activity.append({
+            'type': 'update',
+            'title': u.title,
+            'description': f"Announcement by {u.author.username} for {u.department}",
+            'time': u.created_at.isoformat(),
+            'date_str': u.created_at.strftime('%Y-%m-%d %H:%M')
+        })
+    
+    # Recent tasks
+    recent_tasks = EmployeeTask.query.order_by(EmployeeTask.created_at.desc()).limit(5).all()
+    for t in recent_tasks:
+        recent_activity.append({
+            'type': 'task',
+            'title': t.title,
+            'description': f"Task for {t.employee.username} - {t.status}",
+            'time': t.created_at.isoformat(),
+            'date_str': t.created_at.strftime('%Y-%m-%d %H:%M')
+        })
+    
+    # Recent chat
+    recent_chats = ChatMessage.query.order_by(ChatMessage.created_at.desc()).limit(5).all()
+    for c in recent_chats:
+        recent_activity.append({
+            'type': 'chat',
+            'title': c.department,
+            'description': f"{c.user.username}: {c.body[:80]}..." if len(c.body) > 80 else f"{c.user.username}: {c.body}",
+            'time': c.created_at.isoformat(),
+            'date_str': c.created_at.strftime('%Y-%m-%d %H:%M')
+        })
+    
+    # Sort activity by time (newest first)
+    recent_activity.sort(key=lambda x: x['time'], reverse=True)
+    recent_activity = recent_activity[:15]
+    
+    # Daily stat for today
+    daily_stat = DailyStat.query.filter_by(date=today).first()
+    if not daily_stat:
+        daily_stat = DailyStat.record_today()
+    
+    # Get last 7 days stats for trend
+    from datetime import timedelta
+    last_7_days = []
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        stat = DailyStat.query.filter_by(date=day).first()
+        if stat:
+            last_7_days.append({
+                'date': day.isoformat(),
+                'date_label': day.strftime('%a %d'),
+                'performance_score': stat.performance_score,
+                'present_count': stat.present_count,
+                'absent_count': stat.absent_count,
+                'tasks_created': stat.tasks_created,
+                'tasks_completed': stat.tasks_completed,
+                'reports_sent': stat.reports_sent
+            })
+        else:
+            # Compute on the fly if not recorded yet
+            computed = DailyStat.compute_for(day)
+            last_7_days.append({
+                'date': day.isoformat(),
+                'date_label': day.strftime('%a %d'),
+                'performance_score': computed.performance_score,
+                'present_count': computed.present_count,
+                'absent_count': computed.absent_count,
+                'tasks_created': computed.tasks_created,
+                'tasks_completed': computed.tasks_completed,
+                'reports_sent': computed.reports_sent
+            })
+    
+    # Attendance list for today (who's in)
+    attendance_list = []
+    today_records = Attendance.query.filter(
+        Attendance.date == today,
+        Attendance.status.in_(['present', 'late', 'half-day'])
+    ).order_by(Attendance.check_in.asc()).all()
+    for rec in today_records:
+        attendance_list.append({
+            'user_id': rec.user_id,
+            'username': rec.user.username,
+            'full_name': rec.user.full_name or rec.user.username,
+            'department': rec.user.department or 'N/A',
+            'position': rec.user.position or 'N/A',
+            'check_in': rec.check_in.strftime('%H:%M') if rec.check_in else '--',
+            'check_out': rec.check_out.strftime('%H:%M') if rec.check_out else '--',
+            'status': rec.status
+        })
+    
+    return jsonify({
+        'today': {
+            'date': today.isoformat(),
+            'total_employees': total_employees,
+            'present': present_today,
+            'late': late_today,
+            'absent': absent_today,
+            'total_tasks': total_tasks,
+            'todo_tasks': todo_tasks,
+            'in_progress_tasks': in_progress_tasks,
+            'done_tasks': done_tasks,
+            'total_reports': total_reports,
+            'chat_messages': chat_count,
+            'daily_stat': {
+                'performance_score': daily_stat.performance_score,
+                'tasks_created': daily_stat.tasks_created,
+                'tasks_completed': daily_stat.tasks_completed,
+                'reports_sent': daily_stat.reports_sent,
+                'messages_sent': daily_stat.messages_sent,
+                'chat_messages': daily_stat.chat_messages,
+                'updates_published': daily_stat.updates_published
+            }
+        },
+        'department_distribution': dept_data,
+        'last_7_days': last_7_days,
+        'recent_activity': recent_activity,
+        'attendance_list': attendance_list
+    })
+
+
+@routes.route('/api/dashboard/stats-by-date')
+@login_required
+def api_dashboard_stats_by_date():
+    """JSON endpoint for statistics on a specific date."""
+    require_admin()
+    target_date_str = request.args.get('date', '')
+    
+    try:
+        target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD.'}), 400
+    
+    # Get or compute DailyStat for that date
+    stat = DailyStat.query.filter_by(date=target_date).first()
+    if not stat:
+        stat = DailyStat.compute_for(target_date)
+    
+    # Attendance records for that date
+    attendance_records = []
+    day_records = Attendance.query.filter(
+        Attendance.date == target_date,
+        Attendance.status.in_(['present', 'late', 'half-day'])
+    ).order_by(Attendance.check_in.asc()).all()
+    
+    for rec in day_records:
+        attendance_records.append({
+            'user_id': rec.user_id,
+            'username': rec.user.username,
+            'department': rec.user.department or 'N/A',
+            'position': rec.user.position or 'N/A',
+            'check_in': rec.check_in.strftime('%H:%M') if rec.check_in else '--',
+            'check_out': rec.check_out.strftime('%H:%M') if rec.check_out else '--',
+            'status': rec.status
+        })
+    
+    # Activities on that date
+    activities = []
+    
+    day_reports = ReportDocument.query.filter(
+        db.func.date(ReportDocument.created_at) == target_date
+    ).order_by(ReportDocument.created_at.desc()).all()
+    for r in day_reports:
+        activities.append({
+            'type': 'report',
+            'title': r.title,
+            'description': f"Report by {r.sender.username if r.sender else 'System'} → {r.recipient.username}",
+            'time': r.created_at.strftime('%H:%M')
+        })
+    
+    day_updates = CompanyUpdate.query.filter(
+        db.func.date(CompanyUpdate.created_at) == target_date
+    ).order_by(CompanyUpdate.created_at.desc()).all()
+    for u in day_updates:
+        activities.append({
+            'type': 'update',
+            'title': u.title,
+            'description': f"By {u.author.username} for {u.department}",
+            'time': u.created_at.strftime('%H:%M')
+        })
+    
+    day_tasks = EmployeeTask.query.filter(
+        db.func.date(EmployeeTask.created_at) == target_date
+    ).order_by(EmployeeTask.created_at.desc()).all()
+    for t in day_tasks:
+        activities.append({
+            'type': 'task',
+            'title': t.title,
+            'description': f"For {t.employee.username} - {t.status}",
+            'time': t.created_at.strftime('%H:%M')
+        })
+    
+    day_chats = ChatMessage.query.filter(
+        db.func.date(ChatMessage.created_at) == target_date
+    ).order_by(ChatMessage.created_at.desc()).all()
+    for c in day_chats:
+        activities.append({
+            'type': 'chat',
+            'title': c.department,
+            'description': f"{c.user.username}: {c.body[:80]}..." if len(c.body) > 80 else f"{c.user.username}: {c.body}",
+            'time': c.created_at.strftime('%H:%M')
+        })
+    
+    day_messages = DirectMessage.query.filter(
+        db.func.date(DirectMessage.created_at) == target_date
+    ).order_by(DirectMessage.created_at.desc()).all()
+    for m in day_messages:
+        activities.append({
+            'type': 'message',
+            'title': 'Direct Message',
+            'description': f"From {m.sender.username} to {m.recipient.username}",
+            'time': m.created_at.strftime('%H:%M')
+        })
+    
+    activities.sort(key=lambda x: x['time'], reverse=True)
+    
+    # Who was absent that day
+    absent_users = []
+    if stat:
+        present_ids = [r.user_id for r in day_records]
+        all_users = User.query.all()
+        for u in all_users:
+            if u.id not in present_ids:
+                absent_users.append({
+                    'user_id': u.id,
+                    'username': u.username,
+                    'full_name': u.full_name or u.username,
+                    'department': u.department or 'N/A'
+                })
+    
+    return jsonify({
+        'date': target_date.isoformat(),
+        'stat': {
+            'total_employees': stat.total_employees,
+            'present_count': stat.present_count,
+            'late_count': stat.late_count,
+            'absent_count': stat.absent_count,
+            'tasks_created': stat.tasks_created,
+            'tasks_completed': stat.tasks_completed,
+            'reports_sent': stat.reports_sent,
+            'messages_sent': stat.messages_sent,
+            'chat_messages': stat.chat_messages,
+            'updates_published': stat.updates_published,
+            'performance_score': stat.performance_score
+        },
+        'attendance': attendance_records,
+        'absent_users': absent_users,
+        'activities': activities
+    })
+
+
+@routes.route('/api/dashboard/record-today', methods=['POST'])
+@login_required
+def api_record_today():
+    """Trigger recording of today's daily stats."""
+    require_admin()
+    try:
+        stat = DailyStat.record_today()
+        return jsonify({'success': True, 'date': stat.date.isoformat(), 'performance_score': stat.performance_score})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

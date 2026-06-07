@@ -108,16 +108,25 @@
 
                             <div class="mb-3" id="scope-individual">
                                 <label class="form-label">Select Employee</label>
-                                <select class="form-select" name="target_user_id">
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control" id="employeeSearchInput" placeholder="Search employees..." aria-label="Search employees">
+                                    <button class="btn btn-primary" type="button" id="employeeSearchBtn" title="Search">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                    <button class="btn btn-outline-secondary" type="button" id="employeeSearchClear" title="Clear search">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                                <select class="form-select" name="target_user_id" id="employeeSelect" size="6" style="min-height: 140px;">
                                     {% set current_dept = namespace(name="____START____") %}
                                     {% for u in all_users %}
                                         {% set u_dept = u.department if u.department else 'Unassigned' %}
                                         {% if u_dept != current_dept.name %}
                                             {% if not loop.first %}</optgroup>{% endif %}
-                                            <optgroup label="{{ u_dept }}">
+                                            <optgroup label="{{ u_dept }}" data-dept="{{ u_dept }}">
                                             {% set current_dept.name = u_dept %}
                                         {% endif %}
-                                        <option value="{{ u.id }}" {% if u.id == employee.id %}selected{% endif %}>
+                                        <option value="{{ u.id }}" {% if u.id == employee.id %}selected{% endif %} data-name="{{ (u.full_name or u.username)|lower }}" data-search="{{ (u.full_name or u.username)|lower }} {{ u.position|lower if u.position else '' }} {{ u.email|lower if u.email else '' }}">
                                             {{ u.full_name or u.username }}
                                         </option>
                                         {% if loop.last %}</optgroup>{% endif %}
@@ -180,6 +189,109 @@
                                 deptArea.classList.remove('d-none');
                             }
                         }
+
+                        // ── Employee search filter ──────────────────────────
+                        function filterEmployeeSelect() {
+                            const query = document.getElementById('employeeSearchInput').value.trim().toLowerCase();
+                            const select = document.getElementById('employeeSelect');
+                            const options = select.querySelectorAll('option');
+                            const optgroups = select.querySelectorAll('optgroup');
+                            let hasVisible = false;
+
+                            if (!query) {
+                                options.forEach(opt => opt.style.display = '');
+                                optgroups.forEach(og => og.style.display = '');
+                                return;
+                            }
+
+                            options.forEach(opt => {
+                                const searchData = opt.dataset.search || opt.textContent.toLowerCase();
+                                const matches = searchData.includes(query);
+                                opt.style.display = matches ? '' : 'none';
+                                if (matches) hasVisible = true;
+                            });
+
+                            optgroups.forEach(og => {
+                                const visibleOpts = og.querySelectorAll('option:not([style*="display: none"])');
+                                og.style.display = visibleOpts.length === 0 ? 'none' : '';
+                            });
+
+                            const noResultMsg = document.getElementById('noEmpSearchResult');
+                            if (!hasVisible && query) {
+                                if (!noResultMsg) {
+                                    const msg = document.createElement('div');
+                                    msg.id = 'noEmpSearchResult';
+                                    msg.className = 'text-muted small mt-1';
+                                    msg.textContent = 'No employees match your search.';
+                                    select.parentNode.appendChild(msg);
+                                }
+                                noResultMsg.style.display = '';
+                            } else if (noResultMsg) {
+                                noResultMsg.style.display = 'none';
+                            }
+                        }
+
+                        function fillSearchWithSelected() {
+                            const select = document.getElementById('employeeSelect');
+                            const searchInput = document.getElementById('employeeSearchInput');
+                            const selectedOption = select.options[select.selectedIndex];
+                            if (selectedOption && selectedOption.value) {
+                                searchInput.value = selectedOption.textContent.trim();
+                                filterEmployeeSelect();
+                            }
+                        }
+
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const searchInput = document.getElementById('employeeSearchInput');
+                            const searchBtn = document.getElementById('employeeSearchBtn');
+                            const clearBtn = document.getElementById('employeeSearchClear');
+                            const employeeSelect = document.getElementById('employeeSelect');
+
+                            if (searchInput) {
+                                searchInput.addEventListener('keyup', function(e) {
+                                    filterEmployeeSelect();
+                                    if (e.key === 'Enter') {
+                                        const select = document.getElementById('employeeSelect');
+                                        const visibleOpt = select.querySelector('option:not([style*="display: none"])');
+                                        if (visibleOpt) {
+                                            visibleOpt.selected = true;
+                                            fillSearchWithSelected();
+                                        }
+                                    }
+                                });
+                            }
+
+                            if (searchBtn) {
+                                searchBtn.addEventListener('click', function() {
+                                    filterEmployeeSelect();
+                                    const select = document.getElementById('employeeSelect');
+                                    const visibleOpt = select.querySelector('option:not([style*="display: none"])');
+                                    if (visibleOpt) {
+                                        visibleOpt.selected = true;
+                                        fillSearchWithSelected();
+                                    }
+                                });
+                            }
+
+                            if (clearBtn) {
+                                clearBtn.addEventListener('click', function() {
+                                    document.getElementById('employeeSearchInput').value = '';
+                                    filterEmployeeSelect();
+                                    document.getElementById('employeeSearchInput').focus();
+                                    const noResultMsg = document.getElementById('noEmpSearchResult');
+                                    if (noResultMsg) noResultMsg.style.display = 'none';
+                                });
+                            }
+
+                            if (employeeSelect) {
+                                employeeSelect.addEventListener('change', function() {
+                                    fillSearchWithSelected();
+                                });
+                                employeeSelect.addEventListener('click', function() {
+                                    fillSearchWithSelected();
+                                });
+                            }
+                        });
                     </script>
                 {% endif %}
             </div>

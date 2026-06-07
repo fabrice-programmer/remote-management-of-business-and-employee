@@ -1,46 +1,313 @@
 {% extends 'base.html' %}
 
 {% block title %}
-Dashboard
+Dashboard - Fab Stream
 {% endblock %}
 
 {% block content %}
 
-<section class="app-page">
+<section class="dash-page">
     <div class="container">
-        <div class="app-header">
+        <!-- HEADER -->
+        <div class="dash-header">
             <div>
-                <p class="section-kicker">Workspace overview</p>
-                <h1>Welcome back, {{ current_user.username }}</h1>
-                <p>Follow updates, department communication, and reporting activity from one clean place.</p>
+                <p class="section-kicker">Business Intelligence Dashboard</p>
+                <h1>Performance Overview</h1>
+                <p>Real-time company statistics, attendance tracking, and business activity.</p>
             </div>
-            {% if is_admin %}
-                <a href="{{ url_for('routes.reports') }}" class="btn btn-primary">Send Report</a>
-            {% else %}
-                <a href="{{ url_for('routes.employee_detail', employee_id=current_user.id) }}" class="btn btn-primary">Review Account</a>
-            {% endif %}
-        </div>
-
-        <div class="stat-grid">
-            <div class="stat-card">
-                <span>{{ stats.employees }}</span>
-                <strong>Employees</strong>
-            </div>
-            <div class="stat-card">
-                <span>{{ stats.reports }}</span>
-                <strong>Your Reports</strong>
-            </div>
-            <div class="stat-card">
-                <span>{{ stats.received }}</span>
-                <strong>Received</strong>
-            </div>
-            <div class="stat-card">
-                <span>{{ stats.departments }}</span>
-                <strong>Departments</strong>
+            <div class="dash-header-actions">
+                <button class="btn btn-refresh" onclick="refreshDashboard()">
+                    &#x21bb; Refresh Data
+                </button>
+                {% if is_admin %}
+                    <a href="{{ url_for('routes.reports') }}" class="btn btn-primary">Send Report</a>
+                {% else %}
+                    <a href="{{ url_for('routes.employee_detail', employee_id=current_user.id) }}" class="btn btn-primary">My Account</a>
+                {% endif %}
             </div>
         </div>
 
-        <div class="row g-4 mt-1">
+        <!-- EMPLOYEE ATTENDANCE CHECK-IN/OUT BUTTON -->
+        {% if not is_admin %}
+        <div class="attendance-checkin-card">
+            <div class="attendance-checkin-body">
+                <div class="attendance-checkin-info">
+                    <h3>Daily Attendance</h3>
+                    {% if attendance %}
+                        <p class="attendance-status checked-in">
+                            &#x2705; You checked in today at <strong>{{ attendance.check_in.strftime('%H:%M') }}</strong>
+                            {% if attendance.check_out %}
+                                <br>Checked out at <strong>{{ attendance.check_out.strftime('%H:%M') }}</strong>
+                            {% endif %}
+                        </p>
+                    {% else %}
+                        <p class="attendance-status not-checked-in">&#x23F0; You haven't checked in today yet</p>
+                    {% endif %}
+                </div>
+                <div class="attendance-checkin-actions">
+                    {% if not attendance %}
+                        <form method="POST" action="{{ url_for('routes.check_in') }}" style="display:inline;">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                &#x2705; Check In
+                            </button>
+                        </form>
+                    {% elif attendance and not attendance.check_out %}
+                        <form method="POST" action="{{ url_for('routes.check_out') }}" style="display:inline;">
+                            <button type="submit" class="btn btn-warning btn-lg">
+                                &#x1F6AA; Check Out
+                            </button>
+                        </form>
+                    {% else %}
+                        <span class="badge bg-success p-3 fs-6">&#x2705; All done for today</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- TOP STATS CARDS -->
+        <div class="dash-stat-grid">
+            <div class="dash-stat-card dash-stat-card-primary" data-count="{{ stats.employees }}">
+                <div class="dash-stat-icon">&#x1F465;</div>
+                <span class="dash-stat-value" id="stat-employees">0</span>
+                <strong class="dash-stat-label">Total Employees</strong>
+            </div>
+            <div class="dash-stat-card dash-stat-card-success" data-count="0" id="card-present">
+                <div class="dash-stat-icon">&#x2705;</div>
+                <span class="dash-stat-value" id="stat-present">0</span>
+                <strong class="dash-stat-label">Present Today</strong>
+            </div>
+            <div class="dash-stat-card dash-stat-card-warning" data-count="0" id="card-late">
+                <div class="dash-stat-icon">&#x23F0;</div>
+                <span class="dash-stat-value" id="stat-late">0</span>
+                <strong class="dash-stat-label">Late Today</strong>
+            </div>
+            <div class="dash-stat-card dash-stat-card-danger" data-count="0" id="card-absent">
+                <div class="dash-stat-icon">&#x274C;</div>
+                <span class="dash-stat-value" id="stat-absent">0</span>
+                <strong class="dash-stat-label">Absent</strong>
+            </div>
+            <div class="dash-stat-card dash-stat-card-info" data-count="0" id="card-performance">
+                <div class="dash-stat-icon">&#x1F4CA;</div>
+                <span class="dash-stat-value" id="stat-performance">0</span>
+                <strong class="dash-stat-label">Performance Score</strong>
+            </div>
+            <div class="dash-stat-card dash-stat-card-purple" data-count="0" id="card-tasks">
+                <div class="dash-stat-icon">&#x1F4CB;</div>
+                <span class="dash-stat-value" id="stat-tasks-done">0</span>
+                <strong class="dash-stat-label">Tasks Completed</strong>
+            </div>
+        </div>
+
+        <!-- DATE SEARCH BAR -->
+        <div class="dash-search-bar">
+            <div class="dash-date-search">
+                <label for="dateSearch">&#x1F50D; Search Statistics by Date:</label>
+                <div class="dash-date-input-group">
+                    <input type="date" id="dateSearch" class="form-control" max="{{ now_date }}" />
+                    <button class="btn btn-primary" onclick="searchDateStats()">Search</button>
+                    <button class="btn btn-outline-secondary" onclick="clearDateSearch()">Today</button>
+                </div>
+            </div>
+            <div class="dash-date-display">
+                <span id="dashDateDisplay">Today's Overview</span>
+                <small id="dashDateSubtitle">{{ now_date.strftime('%B %d, %Y') }}</small>
+            </div>
+        </div>
+
+        <!-- DATE-SPECIFIC STATS PANEL (hidden by default) -->
+        <div id="dateStatsPanel" class="dash-panel" style="display: none;">
+            <div class="panel-title">
+                <h3 id="dateStatsTitle">Statistics for <span id="selectedDateLabel"></span></h3>
+                <button class="btn-close-panel" onclick="clearDateSearch()">&times;</button>
+            </div>
+            <div class="dash-stat-grid dash-stat-grid-sm" id="dateStatsGrid">
+                <!-- Populated by JS -->
+            </div>
+            
+            <div class="dash-two-col">
+                <div class="dash-panel">
+                    <h4>Attendance on this Day</h4>
+                    <div class="dash-table-wrap">
+                        <table class="dash-table" id="dateAttendanceTable">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Department</th>
+                                    <th>Check-In</th>
+                                    <th>Check-Out</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dateAttendanceBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="dash-panel">
+                    <h4>Absent Employees</h4>
+                    <div class="dash-table-wrap">
+                        <table class="dash-table" id="dateAbsentTable">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Department</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dateAbsentBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dash-panel">
+                <h4>Activity Log for this Day</h4>
+                <div class="dash-activity-log" id="dateActivityLog">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT ROW -->
+        <div class="dash-main-grid">
+
+            <!-- LEFT COLUMN -->
+            <div class="dash-left-col">
+
+                <!-- PERFORMANCE CHART -->
+                <div class="dash-panel">
+                    <div class="panel-title">
+                        <h3>7-Day Performance Trend</h3>
+                        <span class="badge badge-outline">Last 7 days</span>
+                    </div>
+                    <div class="dash-chart-container">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- ATTENDANCE CHART -->
+                <div class="dash-panel">
+                    <div class="panel-title">
+                        <h3>Attendance Overview (7 Days)</h3>
+                        <span class="badge badge-outline">Present vs Absent</span>
+                    </div>
+                    <div class="dash-chart-container">
+                        <canvas id="attendanceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- TASK STATUS CHART -->
+                <div class="dash-panel">
+                    <div class="panel-title">
+                        <h3>Task Status Distribution</h3>
+                        <span class="badge badge-outline">All time</span>
+                    </div>
+                    <div class="dash-chart-container dash-chart-sm">
+                        <canvas id="taskChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- DEPARTMENT DISTRIBUTION CHART -->
+                <div class="dash-panel">
+                    <div class="panel-title">
+                        <h3>Department Distribution</h3>
+                        <span class="badge badge-outline">Employees</span>
+                    </div>
+                    <div class="dash-chart-container dash-chart-sm">
+                        <canvas id="deptChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT COLUMN -->
+            <div class="dash-right-col">
+
+                <!-- TODAY'S ATTENDANCE TABLE -->
+                <div class="dash-panel">
+                    <div class="panel-title">
+                        <h3>Today's Attendance</h3>
+                        <span class="badge" id="attendanceCountBadge">0 checked in</span>
+                        {% if is_admin %}
+                            <a href="{{ url_for('routes.attendance_records') }}" class="btn btn-sm btn-outline-primary ms-auto">View All</a>
+                        {% endif %}
+                    </div>
+                    <div class="dash-table-wrap">
+                        <table class="dash-table" id="attendanceTable">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Department</th>
+                                    <th>Check-In</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceTableBody">
+                                <tr><td colspan="4" class="text-center text-muted py-3">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TODAY'S DAILY STATS DETAIL -->
+                <div class="dash-panel">
+                    <div class="panel-title">
+                        <h3>Today's Statistics Breakdown</h3>
+                        <span class="badge badge-outline" id="todayDateBadge">{{ now_date.strftime('%b %d') }}</span>
+                    </div>
+                    <div class="dash-stat-detail-grid" id="todayStatsGrid">
+                        <div class="dash-stat-detail-item">
+                            <span class="detail-icon">&#x1F4C4;</span>
+                            <strong>Reports Sent</strong>
+                            <span class="detail-value" id="detail-reports">0</span>
+                        </div>
+                        <div class="dash-stat-detail-item">
+                            <span class="detail-icon">&#x1F4AD;</span>
+                            <strong>Chat Messages</strong>
+                            <span class="detail-value" id="detail-chat">0</span>
+                        </div>
+                        <div class="dash-stat-detail-item">
+                            <span class="detail-icon">&#x2709;&#xFE0F;</span>
+                            <strong>Direct Messages</strong>
+                            <span class="detail-value" id="detail-messages">0</span>
+                        </div>
+                        <div class="dash-stat-detail-item">
+                            <span class="detail-icon">&#x1F4E2;</span>
+                            <strong>Updates Published</strong>
+                            <span class="detail-value" id="detail-updates">0</span>
+                        </div>
+                        <div class="dash-stat-detail-item">
+                            <span class="detail-icon">&#x1F3AF;</span>
+                            <strong>Tasks Created</strong>
+                            <span class="detail-value" id="detail-tasks-created">0</span>
+                        </div>
+                        <div class="dash-stat-detail-item">
+                            <span class="detail-icon">&#x2705;</span>
+                            <strong>Tasks Completed</strong>
+                            <span class="detail-value" id="detail-tasks-completed">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RECENT ACTIVITY FEED -->
+                <div class="dash-panel">
+                    <div class="panel-title">
+                        <h3>Recent Activity</h3>
+                        <span class="badge badge-outline">Live</span>
+                    </div>
+                    <div class="dash-activity-feed" id="activityFeed">
+                        <div class="text-center text-muted py-3">Loading...</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- OLD CONTENT (Company Updates, Reports, Messages) -->
+        <div class="row g-4 mt-3">
             <div class="col-lg-7">
                 <div class="work-panel">
                     <div class="panel-title">
@@ -139,4 +406,9 @@ Dashboard
     </div>
 </section>
 
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

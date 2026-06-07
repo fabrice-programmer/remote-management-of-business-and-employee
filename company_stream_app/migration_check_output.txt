@@ -1,0 +1,9 @@
+Alembic version: add_manager_id
+Department columns:
+  (0, 'id', 'INTEGER', 1, None, 1)
+  (1, 'name', 'VARCHAR(80)', 1, None, 0)
+  (2, 'summary', 'TEXT', 0, None, 0)
+  (3, 'status', 'VARCHAR(30)', 0, None, 0)
+  (4, 'created_at', 'DATETIME', 0, None, 0)
+  (5, 'updated_at', 'DATETIME', 0, None, 0)
+  (6, 'manager_id', 'INTEGER', 0, None, 0)

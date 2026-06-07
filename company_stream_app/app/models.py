@@ -156,5 +156,134 @@ class Attendance(db.Model):
     check_in = db.Column(db.DateTime, default=datetime.utcnow)
     check_out = db.Column(db.DateTime, nullable=True)
     date = db.Column(db.Date, default=lambda: datetime.utcnow().date())
+    status = db.Column(db.String(20), default='present')  # present, late, absent, half-day
     
     user = db.relationship('User', backref='attendance_records')
+
+
+class DailyStat(db.Model):
+    """Tracks daily business performance statistics."""
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, unique=True, nullable=False, default=lambda: datetime.utcnow().date())
+    
+    # Attendance stats
+    total_employees = db.Column(db.Integer, default=0)
+    present_count = db.Column(db.Integer, default=0)
+    late_count = db.Column(db.Integer, default=0)
+    absent_count = db.Column(db.Integer, default=0)
+    
+    # Task stats
+    tasks_created = db.Column(db.Integer, default=0)
+    tasks_completed = db.Column(db.Integer, default=0)
+    
+    # Report stats
+    reports_sent = db.Column(db.Integer, default=0)
+    
+    # Message stats
+    messages_sent = db.Column(db.Integer, default=0)
+    chat_messages = db.Column(db.Integer, default=0)
+    
+    # Company updates
+    updates_published = db.Column(db.Integer, default=0)
+    
+    # Revenue / performance (placeholder - can be extended)
+    performance_score = db.Column(db.Float, default=0.0)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<DailyStat {self.date}>'
+    
+    @staticmethod
+    def compute_for(target_date):
+        """Compute and return a DailyStat for the given date (without saving)."""
+        from . import db
+        
+        total_emp = User.query.count()
+        present = Attendance.query.filter(
+            Attendance.date == target_date,
+            Attendance.status.in_(['present', 'late', 'half-day'])
+        ).count()
+        late = Attendance.query.filter(
+            Attendance.date == target_date,
+            Attendance.status == 'late'
+        ).count()
+        
+        tasks_created = EmployeeTask.query.filter(
+            db.func.date(EmployeeTask.created_at) == target_date
+        ).count()
+        tasks_completed = EmployeeTask.query.filter(
+            EmployeeTask.status == 'Done',
+            db.func.date(EmployeeTask.created_at) == target_date
+        ).count()
+        
+        reports_sent = ReportDocument.query.filter(
+            db.func.date(ReportDocument.created_at) == target_date
+        ).count()
+        
+        chat_msgs = ChatMessage.query.filter(
+            db.func.date(ChatMessage.created_at) == target_date
+        ).count()
+        
+        direct_msgs = DirectMessage.query.filter(
+            db.func.date(DirectMessage.created_at) == target_date
+        ).count()
+        
+        updates = CompanyUpdate.query.filter(
+            db.func.date(CompanyUpdate.created_at) == target_date
+        ).count()
+        
+        # Performance score: weighted composite metric (0-100)
+        score = 0.0
+        if total_emp > 0:
+            score += (present / total_emp) * 30  # attendance weight 30%
+        score += min((tasks_completed / max(tasks_created, 1)) * 20, 20)  # tasks 20%
+        score += min((reports_sent / max(total_emp, 1)) * 20, 20)  # reports 20%
+        score += min((updates / max(total_emp, 1)) * 30, 30)  # updates 30%
+        score = round(min(score, 100), 1)
+        
+        stat = DailyStat(
+            date=target_date,
+            total_employees=total_emp,
+            present_count=present,
+            late_count=late,
+            absent_count=max(0, total_emp - present),
+            tasks_created=tasks_created,
+            tasks_completed=tasks_completed,
+            reports_sent=reports_sent,
+            messages_sent=direct_msgs,
+            chat_messages=chat_msgs,
+            updates_published=updates,
+            performance_score=score
+        )
+        return stat
+    
+    @staticmethod
+    def record_today():
+        """Compute and save today's DailyStat."""
+        from . import db
+        today = datetime.utcnow().date()
+        stat = DailyStat.compute_for(today)
+        stat.date = today
+        
+        existing = DailyStat.query.filter_by(date=today).first()
+        if existing:
+            # Update existing
+            existing.total_employees = stat.total_employees
+            existing.present_count = stat.present_count
+            existing.late_count = stat.late_count
+            existing.absent_count = stat.absent_count
+            existing.tasks_created = stat.tasks_created
+            existing.tasks_completed = stat.tasks_completed
+            existing.reports_sent = stat.reports_sent
+            existing.messages_sent = stat.messages_sent
+            existing.chat_messages = stat.chat_messages
+            existing.updates_published = stat.updates_published
+            existing.performance_score = stat.performance_score
+            db.session.commit()
+            return existing
+        else:
+            db.session.add(stat)
+            db.session.commit()
+            return stat

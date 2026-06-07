@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Attendance Records - Fab Stream
+{% endblock %}
+
+{% block content %}
+
+<section class="app-page">
+    <div class="container">
+        <div class="app-header">
+            <div>
+                <p class="section-kicker">Admin center</p>
+                <h1>Attendance Records</h1>
+                <p>View all employee check-ins and attendance history.</p>
+            </div>
+            <a href="{{ url_for('routes.dashboard') }}" class="btn btn-outline-primary">Back to Dashboard</a>
+        </div>
+
+        <!-- Date Filter -->
+        <div class="work-panel mb-4">
+            <form method="GET" action="{{ url_for('routes.attendance_records') }}" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label" for="date">Filter by Date</label>
+                    <input type="date" id="date" name="date" class="form-control" value="{{ selected_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="status">Filter by Status</label>
+                    <select id="status" name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="present" {% if selected_status == 'present' %}selected{% endif %}>Present</option>
+                        <option value="late" {% if selected_status == 'late' %}selected{% endif %}>Late</option>
+                        <option value="half-day" {% if selected_status == 'half-day' %}selected{% endif %}>Half Day</option>
+                        <option value="absent" {% if selected_status == 'absent' %}selected{% endif %}>Absent</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ url_for('routes.attendance_records') }}" class="btn btn-outline-secondary w-100">Reset</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="stat-grid mb-4">
+            <div class="stat-card stat-card-sm">
+                <span>{{ stats.present }}</span>
+                <strong>Present</strong>
+            </div>
+            <div class="stat-card stat-card-sm">
+                <span>{{ stats.late }}</span>
+                <strong>Late</strong>
+            </div>
+            <div class="stat-card stat-card-sm">
+                <span>{{ stats.absent }}</span>
+                <strong>Absent</strong>
+            </div>
+            <div class="stat-card stat-card-sm">
+                <span>{{ stats.total }}</span>
+                <strong>Total Employees</strong>
+            </div>
+        </div>
+
+        <!-- Attendance Table -->
+        <div class="work-panel">
+            <div class="panel-title">
+                <h2>Attendance for {{ selected_date }}</h2>
+                <span class="report-count">{{ records|length }} check-ins</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table report-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Department</th>
+                            <th>Position</th>
+                            <th>Check-In</th>
+                            <th>Check-Out</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                        <tr>
+                            <td>
+                                <strong>{{ record.full_name }}</strong>
+                                <br><small class="text-muted">{{ record.username }}</small>
+                            </td>
+                            <td>{{ record.department or 'N/A' }}</td>
+                            <td>{{ record.position or 'N/A' }}</td>
+                            <td>{{ record.check_in }}</td>
+                            <td>{{ record.check_out }}</td>
+                            <td>
+                                {% if record.status == 'present' %}
+                                    <span class="badge text-bg-success">Present</span>
+                                {% elif record.status == 'late' %}
+                                    <span class="badge text-bg-warning">Late</span>
+                                {% elif record.status == 'half-day' %}
+                                    <span class="badge text-bg-info">Half Day</span>
+                                {% else %}
+                                    <span class="badge text-bg-secondary">{{ record.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty-state">
+                                    <strong>No attendance records found.</strong>
+                                    <span>No employees have checked in on this date.</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Absent Employees -->
+        <div class="work-panel mt-4">
+            <div class="panel-title">
+                <h2>Absent Employees</h2>
+                <span class="report-count">{{ absent_employees|length }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table report-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Department</th>
+                            <th>Position</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for emp in absent_employees %}
+                        <tr>
+                            <td>
+                                <strong>{{ emp.full_name }}</strong>
+                                <br><small class="text-muted">{{ emp.username }}</small>
+                            </td>
+                            <td>{{ emp.department or 'N/A' }}</td>
+                            <td>{{ emp.position or 'N/A' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3">
+                                <div class="empty-state">
+                                    <strong>All employees checked in!</strong>
+                                    <span>Everyone is present for {{ selected_date }}.</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
