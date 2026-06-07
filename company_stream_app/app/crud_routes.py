@@ -1,3 +1,10 @@
+from flask import flash, redirect, render_template, request, url_for, current_app
+from flask_login import login_required
+import os
+from . import db
+from .models import Department, User, EmployeeTask, ReportDocument, DirectMessage, ChatMessage, CompanyUpdate
+from .routes import routes, require_admin, department_names
+
 # =====================
 # COMPREHENSIVE CRUD OPERATIONS
 # =====================
@@ -11,7 +18,7 @@ def create_department():
     require_admin()
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
-        lead = request.form.get('lead', '').strip()
+        manager_id = request.form.get('manager_id', type=int)
         summary = request.form.get('summary', '').strip()
         status = request.form.get('status', 'Active').strip()
 
@@ -25,7 +32,7 @@ def create_department():
 
         department = Department(
             name=name,
-            lead=lead,
+            manager_id=manager_id,
             summary=summary,
             status=status
         )
@@ -34,7 +41,7 @@ def create_department():
         flash(f'Department "{name}" created successfully.', 'success')
         return redirect(url_for('routes.departments'))
 
-    return render_template('department_form.html', department=None, action='Create')
+    return render_template('department_form.html', department=None, action='Create', users=User.query.all())
 
 
 @routes.route('/admin/departments/<int:dept_id>/edit', methods=['GET', 'POST'])
@@ -45,7 +52,7 @@ def edit_department(dept_id):
 
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
-        lead = request.form.get('lead', '').strip()
+        manager_id = request.form.get('manager_id', type=int)
         summary = request.form.get('summary', '').strip()
         status = request.form.get('status', 'Active').strip()
 
@@ -60,14 +67,14 @@ def edit_department(dept_id):
             return redirect(url_for('routes.edit_department', dept_id=dept_id))
 
         department.name = name
-        department.lead = lead
+        department.manager_id = manager_id
         department.summary = summary
         department.status = status
         db.session.commit()
         flash(f'Department "{name}" updated successfully.', 'success')
         return redirect(url_for('routes.departments'))
 
-    return render_template('department_form.html', department=department, action='Edit')
+    return render_template('department_form.html', department=department, action='Edit', users=User.query.all())
 
 
 @routes.route('/admin/departments/<int:dept_id>/delete', methods=['POST'])
@@ -101,6 +108,7 @@ def edit_employee(employee_id):
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
         email = request.form.get('email', '').strip().lower()
+        employee_number = request.form.get('employee_number', '').strip()
         phone = request.form.get('phone', '').strip()
         department = request.form.get('department', '').strip()
         position = request.form.get('position', '').strip()
@@ -122,6 +130,7 @@ def edit_employee(employee_id):
 
         employee.full_name = full_name
         employee.email = email
+        employee.employee_number = employee_number
         employee.phone = phone
         employee.department = department
         employee.position = position

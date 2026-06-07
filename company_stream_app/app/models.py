@@ -1,4 +1,4 @@
-from app import db
+from . import db
 from flask_login import UserMixin
 from datetime import datetime
 
@@ -6,11 +6,13 @@ from datetime import datetime
 class Department(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
-    lead = db.Column(db.String(120), nullable=True)
+    manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     summary = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(30), default='Active')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    manager = db.relationship('User', foreign_keys=[manager_id], backref='managed_department')
 
     def __repr__(self):
         return f'<Department {self.name}>'
@@ -24,7 +26,8 @@ class User(db.Model, UserMixin):
     role = db.Column(db.String(20), default='employee')
     full_name = db.Column(db.String(120), nullable=True)
     employee_number = db.Column(db.String(40), unique=True, nullable=True)
-    employee_code = db.Column(db.String(10), nullable=True)
+    employee_code = db.Column(db.String(40), nullable=True)
+   
     phone = db.Column(db.String(40), nullable=True)
     department = db.Column(db.String(80), nullable=True)
     position = db.Column(db.String(100), nullable=True)

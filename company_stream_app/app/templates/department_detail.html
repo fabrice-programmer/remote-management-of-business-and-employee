@@ -21,7 +21,12 @@
         <div class="stat-grid mb-4">
             <div class="stat-card"><span>{{ employee_details|length }}</span><strong>Total Employees</strong></div>
             <div class="stat-card"><span>{{ department.status }}</span><strong>Department Status</strong></div>
-            <div class="stat-card"><span>{{ department.lead }}</span><strong>Department Lead</strong></div>
+            <div class="stat-card">
+                <span>
+                    {{ department.manager.full_name or department.manager.username if department.manager else 'Not Assigned' }}
+                </span>
+                <strong>Department Lead</strong>
+            </div>
         </div>
 
         <!-- Task Assignment Form -->

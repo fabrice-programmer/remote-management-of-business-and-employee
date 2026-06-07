@@ -26,30 +26,35 @@ login_manager.login_view = 'routes.login'
 
 
 def create_app():
-    app = Flask(__name__)
-    app.config.from_object(Config)
-    app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, app.config['UPLOAD_FOLDER'])
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    flask_app = Flask(__name__)
+    flask_app.config.from_object(Config)
+    flask_app.config['UPLOAD_FOLDER'] = os.path.join(flask_app.instance_path, flask_app.config['UPLOAD_FOLDER'])
+    os.makedirs(flask_app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-    db.init_app(app)
-    bcrypt.init_app(app)
-    login_manager.init_app(app)
-    socketio.init_app(app)
-    migrate.init_app(app, db, render_as_batch=True)
+    db.init_app(flask_app)
+    bcrypt.init_app(flask_app)
+    login_manager.init_app(flask_app)
+    socketio.init_app(flask_app)
+    migrate.init_app(flask_app, db, render_as_batch=True)
 
     # Dev safeguard: if DB is missing new tables (e.g., Attendance), create them.
     # This avoids runtime crashes like: "no such table: attendance".
-    with app.app_context():
-        # Importing User ensures all models in app.models are registered with SQLAlchemy
-        from app.models import User
-        # create_all is safe to run as it won't overwrite existing tables
+    with flask_app.app_context():
+        # Using relative imports ensures we don't accidentally pull in the 'app' 
+        # package namespace into the local scope of this function.
+        from . import models
         db.create_all()
+
+    # Explicitly import User for the user_loader
+    from .models import User
 
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        return db.session.get(User, int(user_id))
 
-    from app.routes import routes
-    app.register_blueprint(routes)
+    from .routes import routes
+    # Import crud_routes to ensure all admin/CRUD routes are attached to the blueprint
+    from . import crud_routes
+    flask_app.register_blueprint(routes)
 
-    return app
+    return flask_app
