@@ -6,3 +6,4 @@ Flask-Bcrypt
 Flask-Migrate
 Flask-SocketIO
 email-validator
+gunicorn
