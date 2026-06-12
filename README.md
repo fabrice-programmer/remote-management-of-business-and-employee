@@ -1,6 +1,6 @@
 this is system that manage business and employee remotely 
 you can assgin work or task to any employee or entire department
-you can give anauncement to business with in same software .
+you can give anouncement to business with in same software .
 it provide security and privacy of company 
 help you to keep your record 
 show performance of your worker and participation attendance 
